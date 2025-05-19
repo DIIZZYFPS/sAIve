@@ -7,6 +7,7 @@ import {
 import { toast } from 'sonner';
 import {ModeToggle} from '@/components/ModeToggle';
 
+
 const DashboardHeader = () => {
   
   const handleAddTransaction = () => {
@@ -18,8 +19,8 @@ const DashboardHeader = () => {
   return (
     <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between py-4 px-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Dashboard Overview</h1>
-        <p className="text-muted-foreground">Welcome back! Here's your financial summary</p>
+        <h1 className="text-2xl md:text-3xl font-bold capitalize">{location.pathname === '/' ? 'Dashboard Overview' : location.pathname.slice(1)}</h1>
+        <p className="text-muted-foreground">{location.pathname === '/' ? `Welcome back! Here's your financial summary` : null}</p>
       </div>
       
       <div className="flex items-center space-x-3">
