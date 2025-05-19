@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {Link, useLocation} from 'react-router-dom';
 import {
   ChevronLeft,
   LayoutDashboard,
@@ -16,28 +17,41 @@ import type { LucideIcon } from 'lucide-react';
 interface SidebarItemProps {
   icon: LucideIcon;
   label: string;
+  to: string;
   active?: boolean;
   onClick?: () => void;
 }
 
-const SidebarItem = ({ icon: Icon, label, active, onClick }: SidebarItemProps) => {
+const SidebarItem = ({ icon: Icon, label, to, active, onClick }: SidebarItemProps) => {
   return (
     <Button
       variant="ghost"
+      asChild
       onClick={onClick}
       className={cn(
         'w-full justify-start gap-2 px-3 h-12',
         active ? 'bg-sidebar-accent text-primary' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
       )}
     >
-      <Icon size={20} />
-      <span>{label}</span>
+      <Link to={to}>
+        <Icon size={20} />
+        <span>{label}</span>
+      </Link>
     </Button>
+    
   );
 };
 
 const Sidebar = () => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    // Get initial state from localStorage or default to false
+    const stored = localStorage.getItem('sidebar-collapsed');
+    return stored === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebar-collapsed', String(collapsed));
+  }, [collapsed]);
 
   return (
     <div
@@ -69,43 +83,78 @@ const Sidebar = () => {
         {!collapsed ? (
           <>
             <div className="text-xs text-sidebar-foreground/70 mb-1 ml-3 mt-2">Overview</div>
-            <SidebarItem icon={LayoutDashboard} label="Dashboard" active />
-            <SidebarItem icon={CreditCard} label="Transactions" />
-            <SidebarItem icon={PiggyBank} label="Budgets" />
-            <SidebarItem icon={BarChart3} label="Reports" />
+            <SidebarItem 
+            icon={LayoutDashboard} 
+            label="Dashboard" 
+            to='/' 
+            active={location.pathname === '/'} 
+            />
+            <SidebarItem 
+              icon={CreditCard} 
+              label="Transactions" 
+              to='/transactions' 
+              active={location.pathname === '/transactions'} 
+            />
+            <SidebarItem 
+              icon={PiggyBank} 
+              label="Flow" 
+              to='/flow' 
+              active={location.pathname === '/flow'} 
+            />
+            <SidebarItem 
+              icon={BarChart3} 
+              label="Reports" 
+              to='/reports' 
+              active={location.pathname === '/reports'} 
+            />
 
             <div className="text-xs text-sidebar-foreground/70 mb-1 ml-3 mt-4">Planning</div>
-            <SidebarItem icon={Calendar} label="Calendar" />
-            <SidebarItem icon={Users} label="Shared" />
-            
+            <SidebarItem 
+              icon={Calendar} 
+              label="Calendar" 
+              to='/calendar' 
+              active={location.pathname === '/calendar'} 
+            />
+            <SidebarItem 
+              icon={Users} 
+              label="Shared" 
+              to='/shared' 
+              active={location.pathname === '/shared'} 
+            />
+
             <div className="mt-auto">
-              <SidebarItem icon={Settings} label="Settings" />
+              <SidebarItem 
+                icon={Settings} 
+                label="Settings" 
+                to='/settings' 
+                active={location.pathname === '/settings'} 
+              />
             </div>
           </>
         ) : (
           <>
-            <Button variant="ghost" size="icon" className={cn('w-full justify-center h-12', 'bg-sidebar-accent text-primary')}>
-              <LayoutDashboard size={20} />
+            <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/' ? 'bg-sidebar-accent text-primary' : '')}>
+              <Link to="/"><LayoutDashboard size={20} /></Link>
             </Button>
-            <Button variant="ghost" size="icon" className={cn('w-full justify-center h-12')}>
-              <CreditCard size={20} />
+            <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/transactions' ? 'bg-sidebar-accent text-primary' : '')}>
+              <Link to="/transactions"><CreditCard size={20} /></Link>
             </Button>
-            <Button variant="ghost" size="icon" className={cn('w-full justify-center h-12')}>
-              <PiggyBank size={20} />
+            <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/flow' ? 'bg-sidebar-accent text-primary' : '')}>
+              <Link to="/flow"><PiggyBank size={20} /></Link>
             </Button>
-            <Button variant="ghost" size="icon" className={cn('w-full justify-center h-12')}>
-              <BarChart3 size={20} />
+            <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/reports' ? 'bg-sidebar-accent text-primary' : '')}>
+              <Link to="/reports"><BarChart3 size={20} /></Link>
             </Button>
-            <Button variant="ghost" size="icon" className={cn('w-full justify-center h-12')}>
-              <Calendar size={20} />
+            <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/calendar' ? 'bg-sidebar-accent text-primary' : '')}>
+              <Link to="/calendar"><Calendar size={20} /></Link>
             </Button>
-            <Button variant="ghost" size="icon" className={cn('w-full justify-center h-12')}>
-              <Users size={20} />
+            <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/shared' ? 'bg-sidebar-accent text-primary' : '')}>
+              <Link to="/shared"><Users size={20} /></Link>
             </Button>
             
             <div className="mt-auto">
-              <Button variant="ghost" size="icon" className={cn('w-full justify-center h-12')}>
-                <Settings size={20} />
+              <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/settings' ? 'bg-sidebar-accent text-primary' : '')}>
+                <Link to="/settings"><Settings size={20} /></Link>
               </Button>
             </div>
           </>
