@@ -1,0 +1,73 @@
+{
+  "name": "saive",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "public/electron.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "start": "vite",
+    "preview": "vite preview",
+    "electron:start": "concurrently \"cross-env BROWSER=none npm run start\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
+    "electron:build": "vite build && electron-builder",
+    "electron:dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:5173 && electron . --dev\""
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router": "^7.6.0",
+    "react-router-dom": "^7.6.0",
+    "sonner": "^2.0.3",
+    "tailwind-merge": "^3.3.0",
+    "tailwindcss": "^4.1.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@types/node": "^22.15.18",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^36.2.1",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "tw-animate-css": "^1.3.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.30.1",
+    "vite": "^6.3.5",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.example.sAIve",
+    "productName": "sAIve",
+    "files": [
+      "dist/**/*",
+      "electron.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "release"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
