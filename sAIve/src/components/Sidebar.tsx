@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {Link, useLocation} from 'react-router-dom';
+import {Link} from 'react-router-dom';
 import {
   ChevronLeft,
   LayoutDashboard,

@@ -1,5 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Chart from "@/components/Chart";
 
 const Flow = () => {
     return (
@@ -7,9 +9,20 @@ const Flow = () => {
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-auto">
                 <DashboardHeader />
-                <div className="flex-1 p-6 space-y-6 overflow-auto">
-                    <h1 className="text-2xl font-bold">Flow Page</h1>
-                </div>
+                <main className="flex-1 p-6 overflow-auto flex items-center justify-center">
+                    <div className="w-full">
+                        <Card className="glass-card border-border/50 ">
+                            <CardHeader className="pb-0">
+                                <CardTitle className="text-xl">Financial Flow</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                                <div className="h-[800px] ">
+                                    <Chart  />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </main>
             </div>
         </div>
     );
