@@ -26,7 +26,7 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS user_assets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            year INTEGER NOT NULL,
+            year YEAR NOT NULL,
             month INTEGER NOT NULL,
             TIncome REAL NOT NULL,
             TExpense REAL NOT NULL,
@@ -40,7 +40,7 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            date TIMESTAMP NOT NULL,
+            date DATE NOT NULL,
             amount REAL NOT NULL,
             category TEXT NOT NULL,
             recipient TEXT NOT NULL,
