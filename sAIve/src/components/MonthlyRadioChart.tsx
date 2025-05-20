@@ -1,16 +1,8 @@
 "use client"
 
-import { TrendingUp } from "lucide-react"
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart } from "recharts"
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+
 import type { ChartConfig } from "@/components/ui/chart"
 import {
   ChartContainer,
@@ -38,7 +30,7 @@ export function MonthlyRadioChart() {
     
         <ChartContainer
           config={chartConfig}
-          className="mx-auto aspect-square max-h-[500px]"
+          className="mx-auto aspect-square max-h-[500px] w-full"
         >
           <RadarChart data={chartData}>
             <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line"/>} />

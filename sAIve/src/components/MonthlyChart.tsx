@@ -31,7 +31,7 @@ const chartConfig = {
 
 export function MonthlyChart() {
   return (
-        <ChartContainer config={chartConfig} className="mx-auto max-h-[500px]">
+        <ChartContainer config={chartConfig} className="mx-auto max-h-[500px] w-full">
             
           <LineChart
             accessibilityLayer
@@ -57,6 +57,7 @@ export function MonthlyChart() {
             />
             <Line
               dataKey="desktop"
+              animationEasing="ease"
               type="natural"
               stroke="var(--color-desktop)"
               strokeWidth={2}
