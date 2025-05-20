@@ -24,6 +24,7 @@ class TransactionType(str, Enum):
 class Transaction(BaseModel):
     id: int
     user_id: int
+    recipient: str
     date: datetime
     amount: float
     category: str

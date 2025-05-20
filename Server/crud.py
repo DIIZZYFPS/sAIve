@@ -107,9 +107,16 @@ def create_transaction(transaction: Transaction):
     cursor = conn.cursor()
 
     cursor.execute('''
-        INSERT INTO transactions (user_id, date, amount, category, type)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (transaction.user_id, transaction.date, transaction.amount, transaction.category, transaction.type))
+        INSERT INTO transactions (user_id, date, amount, category, recipient, type)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (
+        transaction.user_id,
+        transaction.date,
+        transaction.amount,
+        transaction.category,
+        transaction.recipient,
+        transaction.type
+    ))
 
     conn.commit()
     conn.close()
@@ -142,6 +149,6 @@ def get_all_transactions():
 
     transactions = []
     for row in rows:
-        transactions.append(Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type']))
+        transactions.append(Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient']))
     
     return transactions

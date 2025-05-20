@@ -57,6 +57,10 @@ def read_user_asset(user_asset_id: int):
 @app.post("/transactions/", response_model=models.Transaction)
 def create_transaction(transaction: models.Transaction):
     return crud.create_transaction(transaction)
+@app.get("/transactions/", response_model=list[models.Transaction])
+def get_all_transactions():
+    transactions = crud.get_all_transactions()
+    return transactions
 
 @app.get("/transactions/{transaction_id}", response_model=models.Transaction)
 def read_transaction(transaction_id: int):

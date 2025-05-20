@@ -5,6 +5,7 @@ import { ThemeProvider, useTheme } from "@/components/ThemeProvider"
 // Pages
 import Index from '@/pages/Index'
 import Flow from '@/pages/Flow'
+import Transactions from '@/pages/Transactions'
 import NotFound from './pages/NotFount'
 
 function ThemedToaster() {
@@ -20,6 +21,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/flow" element={<Flow />} />
+          <Route path="/transactions" element={<Transactions />} />
           {/* New Routes above Here */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -43,6 +43,7 @@ def create_tables():
             date TIMESTAMP NOT NULL,
             amount REAL NOT NULL,
             category TEXT NOT NULL,
+            recipient TEXT NOT NULL,
             type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
             FOREIGN KEY (user_id) REFERENCES users (id)
         )

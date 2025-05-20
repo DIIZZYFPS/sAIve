@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import DashboardHeader from '@/components/DashboardHeader';
 import Sidebar from '@/components/Sidebar';
 import OverviewCards from "@/components/OverviewCards";
+import TransactionsTable from "@/components/TransactionsTable";
 import { MonthlyChart } from "@/components/MonthlyChart";
 import { MonthlyRadioChart } from "@/components/MonthlyRadioChart";
 import { ResponsiveContainer } from "recharts";
@@ -51,8 +52,7 @@ const Index = () => {
               </CardHeader>
               <CardContent className="pt-4">
                 <div className="h-[300px]">
-                    {/* Placeholder for transactions */}
-                    <p className="text-muted-foreground">Transactions will be here</p>
+                    <TransactionsTable />
                 </div>
               </CardContent>
             </Card>

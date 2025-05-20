@@ -31,8 +31,14 @@ export function MonthlyRadioChart() {
         <ChartContainer
           config={chartConfig}
           className="mx-auto aspect-square max-h-[500px] w-full"
+          
         >
-          <RadarChart data={chartData}>
+          <RadarChart data={chartData} margin={{
+              left: 20,
+              right: 10,
+                top: 10,
+                bottom: 10,
+            }}>
             <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line"/>} />
             <PolarAngleAxis dataKey="to" />
             <PolarGrid />
