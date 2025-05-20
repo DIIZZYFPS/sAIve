@@ -2,7 +2,8 @@ import { Button } from '@/components/ui/button';
 import { 
   Bell,
   User,
-  Plus
+  Plus,
+  CalendarIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {ModeToggle} from '@/components/ModeToggle';
@@ -26,17 +27,35 @@ import {
   Card,
   CardContent
 } from "@/components/ui/card"
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+
 import { Separator } from '@/components/ui/separator';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 
   const formSchema = z.object({
     title: z.string().min(1, "Title is required"),
     amount: z.number().min(0, "Amount must be a positive number"),
+    date: z.date(),
     type: z.enum(["income", "expense"], {
       errorMap: () => ({ message: "Type is required" }),
     }),
@@ -142,6 +161,73 @@ const DashboardHeader = () => {
                       />
                       <Separator className='my-4'/>
                       </div>
+                        <div>
+                          <FormField
+                                control={form.control}
+                                name="date"
+                                render={({ field }) => (
+                                  <FormItem className="flex flex-col">
+                                    <FormLabel>Date of birth</FormLabel>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <FormControl>
+                                          <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                              "w-[240px] pl-3 text-left font-normal",
+                                              !field.value && "text-muted-foreground"
+                                            )}
+                                          >
+                                            {field.value ? (
+                                              format(field.value, "PPP")
+                                            ) : (
+                                              <span>Pick a date</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                          </Button>
+                                        </FormControl>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                          mode="single"
+                                          selected={field.value}
+                                          onSelect={field.onChange}
+                                          disabled={(date) =>
+                                            date > new Date() || date < new Date("1900-01-01")
+                                          }
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <Separator className='my-4'/>
+                        </div>
+                        <div>
+                          <FormField
+                            control={form.control}
+                            name="type"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Transaction Type</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select a transaction type" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="income">Income</SelectItem>
+                                        <SelectItem value="expense">Expense</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                              </FormItem>
+                            )}
+                          />
+                          <Separator className='my-4'/>
+                        </div>
                   </form>
                 </Form>
               </CardContent>
