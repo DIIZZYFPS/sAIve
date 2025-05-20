@@ -52,7 +52,7 @@ const Index = () => {
               </CardHeader>
               <CardContent className="pt-4">
                 <div className="h-[300px]">
-                    <TransactionsTable />
+                    <TransactionsTable pageSize={10} />
                 </div>
               </CardContent>
             </Card>

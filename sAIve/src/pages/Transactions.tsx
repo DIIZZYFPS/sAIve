@@ -20,7 +20,7 @@ export default function Transactions() {
                                 <CardTitle className="text-xl">Transactions</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4">
-                               <TransactionsTable />
+                               <TransactionsTable pageSize={100}/>
                             </CardContent>
                         </Card>
                     </div>
