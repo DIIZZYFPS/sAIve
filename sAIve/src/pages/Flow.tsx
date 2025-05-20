@@ -16,9 +16,9 @@ const Flow = () => {
                                 <CardTitle className="text-xl">Financial Flow</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4">
-                                <div className="h-[800px] ">
-                                    <Chart  />
-                                </div>
+                                
+                                    <Chart/>
+                                
                             </CardContent>
                         </Card>
                     </div>
