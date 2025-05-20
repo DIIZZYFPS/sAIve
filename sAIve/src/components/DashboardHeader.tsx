@@ -118,7 +118,7 @@ const DashboardHeader = () => {
               <Card className="glass-card border-border/50 w-full">
                 <CardContent className="pt-4">
                 <Form {... form}>
-                   <form onSubmit={form.handleSubmit(handleAddTransaction)} className="space-y-8 w-full grid grid-cols-2 gap-8">
+                   <form onSubmit={form.handleSubmit(handleAddTransaction)} className="space-y-8 w-full grid grid-cols-2 gap-4">
                     <div>
                      <FormField
                        control={form.control}
