@@ -3,8 +3,7 @@ import {
   Bell,
   User,
   Plus,
-  CalendarIcon,
-  DollarSign
+  CalendarIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {ModeToggle} from '@/components/ModeToggle';
