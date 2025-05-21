@@ -1,5 +1,5 @@
 from database import create_connection
-from models import User, UserAsset, Transaction
+from models import User, UserAsset, Transaction, TransactionCreate
 
 def create_user(user: User):
     conn = create_connection()
@@ -102,7 +102,7 @@ def delete_user_asset(user_asset_id: int):
     conn.commit()
     conn.close()
 
-def create_transaction(transaction: Transaction):
+def create_transaction(transaction: TransactionCreate):
     conn = create_connection()
     cursor = conn.cursor()
 
@@ -120,7 +120,6 @@ def create_transaction(transaction: Transaction):
 
     conn.commit()
     conn.close()
-    return transaction
 def get_transaction(transaction_id: int):
     conn = create_connection()
     cursor = conn.cursor()

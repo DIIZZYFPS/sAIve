@@ -6,11 +6,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-
-import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useState, type Key, type ReactElement, } from "react";
+import { TrendingUp, TrendingDown, ChevronRight, ChevronLeft } from "lucide-react";
 import api from "@/lib/api";
 
 interface Transaction {
@@ -20,43 +20,40 @@ interface Transaction {
   recipient: string;
 }
 
-
 type TransactionsTableProps = {
   pageSize?: number;
 };
 
 export default function TransactionsTable({ pageSize = 10 }: TransactionsTableProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [page, setPage] = useState(0);
 
-  const fetchTransactions = async () => {
-    try {
+  // React Query fetch
+  const {
+    data: transactions = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["transactions"],
+    queryFn: async () => {
       const response = await api.get("/transactions");
-      setTransactions(response.data);
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-    }
-  };
+      return response.data;
+    },
+    refetchInterval: 1000
+  });
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchTransactions();
-    }, 30000); // Fetch every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  // Pagination logic
   const pageCount = Math.ceil(transactions.length / pageSize);
-  const paginated = transactions.slice(page * pageSize, (page + 1) * pageSize);
+  const paginated = transactions.slice().reverse().slice(page * pageSize, (page + 1) * pageSize);
 
   return (
     <div>
       <Table>
-        <TableCaption>A list of your recent Transactions.</TableCaption>
+        <TableCaption>
+          A list of your recent Transactions.
+          <Button variant="link" size="sm" className="ml-2" onClick={() => refetch()}>
+            Refresh
+          </Button>
+        </TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead className="w-[100px]">Date</TableHead>
@@ -66,53 +63,76 @@ export default function TransactionsTable({ pageSize = 10 }: TransactionsTablePr
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginated.map((transaction, index) => (
-            <TableRow key={index}>
-              <TableCell className="text-medium">
+            {isLoading ? (
+            <TableRow>
+              <TableCell colSpan={4}>Loading...</TableCell>
+            </TableRow>
+            ) : isError ? (
+            <TableRow>
+              <TableCell colSpan={4}>Error loading transactions.</TableCell>
+            </TableRow>
+            ) : paginated.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={4}>No transactions found.</TableCell>
+            </TableRow>
+            ) : (
+            paginated.map(
+              (
+              transaction: Transaction,
+              index: Key
+              ): ReactElement => (
+              <TableRow key={index}>
+                <TableCell className="text-medium">
                 {new Date(transaction.date).toLocaleDateString(undefined, {
                   month: "2-digit",
                   day: "2-digit",
-                  year: "numeric"
+                  year: "numeric",
                 })}
-              </TableCell>
-              <TableCell className="capitalize">
+                </TableCell>
+                <TableCell className="capitalize">
                 {transaction.type === "income" ? (
                   <span className="text-income">
-                    <TrendingUp className="h-4 w-4 inline" /> {transaction.type}
+                  <TrendingUp className="h-4 w-4 inline" /> {transaction.type}
                   </span>
                 ) : (
                   <span className="text-expense">
-                    <TrendingDown className="h-4 w-4 inline" /> {transaction.type}
+                  <TrendingDown className="h-4 w-4 inline" /> {transaction.type}
                   </span>
                 )}
-              </TableCell>
-              <TableCell>{transaction.recipient}</TableCell>
-              <TableCell className="text-right">
+                </TableCell>
+                <TableCell>{transaction.recipient}</TableCell>
+                <TableCell className="text-right">
                 ${transaction.amount.toFixed(2)}
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+              </TableRow>
+              )
+            )
+            )}
         </TableBody>
       </Table>
 
       {/* Pagination Controls */}
-      <div className="flex justify-end items-center gap-2 mt-4">
+      <div className="flex justify-end items-center gap-2 mt-2">
         <Button
-          className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 disabled:opacity-50"
+          variant={"ghost"}
+          size="icon"
+          className="px-3 py-1 disabled:opacity-50"
           onClick={() => setPage((p) => Math.max(p - 1, 0))}
           disabled={page === 0}
         >
-          Prev
+          <ChevronLeft className="h-4 w-4" />
         </Button>
         <span>
           Page {page + 1} of {pageCount}
         </span>
         <Button
-          className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 disabled:opacity-50"
+          variant={"ghost"}
+          size="icon"
+          className="px-3 py-1 disabled:opacity-50"
           onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
           disabled={page >= pageCount - 1}
         >
-          Next
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

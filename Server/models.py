@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import date
 from enum import Enum
 
 class User(BaseModel):
@@ -25,7 +25,15 @@ class Transaction(BaseModel):
     id: int
     user_id: int
     recipient: str
-    date: datetime
+    date: date
+    amount: float
+    category: str
+    type: TransactionType
+
+class TransactionCreate(BaseModel):
+    user_id: int
+    recipient: str
+    date: date
     amount: float
     category: str
     type: TransactionType

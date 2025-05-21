@@ -3,7 +3,8 @@ import {
   Bell,
   User,
   Plus,
-  CalendarIcon
+  CalendarIcon,
+  DollarSign
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {ModeToggle} from '@/components/ModeToggle';
@@ -51,11 +52,18 @@ import { z } from "zod"
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
+import api from '@/lib/api';
+import { useQueryClient } from "@tanstack/react-query";
+
+
 
   const formSchema = z.object({
     title: z.string().min(1, "Title is required"),
     amount: z.number().min(0, "Amount must be a positive number"),
     date: z.date(),
+    category: z.enum(["Food", "Transportation", "Subscriptions","Bills","Housing", "Other", "Income"], {
+      errorMap: () => ({ message: "Category is required" }),
+    }),
     type: z.enum(["income", "expense"], {
       errorMap: () => ({ message: "Type is required" }),
     }),
@@ -63,12 +71,32 @@ import { cn } from '@/lib/utils';
 
 const DashboardHeader = () => {
   const [isOpen, setIsOpen] = useState(false);
-
-  const handleAddTransaction = () => {
-    setIsOpen(false);
-    toast("Feature coming soon", {
-      description: "Add transaction functionality will be available soon."
+  const queryClient = useQueryClient();
+  const handleAddTransaction = (values: any) => {
+    const payload = {
+      user_id: 1,
+      recipient: values.title,
+      date: values.date ? values.date.toISOString().slice(0, 10) : undefined,
+      amount: values.amount,
+      category: "Food",
+      type: values.type,
+    };
+    
+    // Call the API to add the transaction
+    const promise = () => api.post("/transactions", payload);
+    toast.promise(promise, {
+      loading: "Adding transaction...",
+      success: "Transaction added successfully",
+      error: (err) => {
+        if (err.response) {
+          return err.response.data.message;
+        }
+        return "Error adding transaction";
+      }
     });
+    queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    // Close the drawer after adding the transaction
+    setIsOpen(false);
   };
 
   // Form validation schema
@@ -78,6 +106,8 @@ const DashboardHeader = () => {
     defaultValues: {
       title: "",
       amount: 0,
+      date: new Date(),
+      category: "Other",
       type: "income",
     },
   });
@@ -104,7 +134,7 @@ const DashboardHeader = () => {
         <Button variant="ghost" size="icon">
           <User className="h-5 w-5" />
         </Button>
-        <Drawer open={isOpen} onOpenChange={setIsOpen} shouldScaleBackground={true} >
+        <Drawer open={isOpen} onOpenChange={setIsOpen} shouldScaleBackground={true}> 
           <DrawerTrigger >
             <Button variant="ghost" className="bg-primary">
               <Plus className="mr-1 h-4 w-4" />
@@ -113,13 +143,14 @@ const DashboardHeader = () => {
           </DrawerTrigger>
           <DrawerContent className='items-center'>
             <DrawerHeader>
-              <DrawerTitle className='text-center'>Add Transaction</DrawerTitle>
+              <DrawerTitle className='text-center mb-7'>Add Transaction</DrawerTitle>
+              <Separator className='mb-4'/>
 
-              <Card className="glass-card border-border/50 w-full">
+              <Card className="glass-card border-border/50 w-full mb-5 ">
                 <CardContent className="pt-4">
                 <Form {... form}>
-                   <form onSubmit={form.handleSubmit(handleAddTransaction)} className="space-y-8 w-full grid grid-cols-2 gap-4">
-                    <div>
+                   <form onSubmit={form.handleSubmit(handleAddTransaction)} className="space-y-8 w-full grid grid-cols-4 gap-4">
+                    <div className='col-span-2'>
                      <FormField
                        control={form.control}
                        name="title"
@@ -140,7 +171,7 @@ const DashboardHeader = () => {
                       />
                       <Separator className='my-4'/>
                       </div>
-                      <div>
+                      <div className='col-span-2'>
                       <FormField
                         control={form.control}
                         name="amount"
@@ -148,12 +179,17 @@ const DashboardHeader = () => {
                           <FormItem>
                             <FormLabel>Transaction Amount</FormLabel>
                             <FormControl>
-                              <input
-                                {...field}
-                                type="number"
-                                placeholder="Enter the amount for the transaction."
-                                className="input"
-                              />
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">$</span>
+                                <input
+                                  {...field}
+                                  type="number"
+                                  placeholder="Enter the amount for the transaction."
+                                  className="input pl-6" // add left padding to make space for the dollar sign
+                                  value={field.value}
+                                  onChange={e => field.onChange(e.target.valueAsNumber)}
+                                />
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -161,14 +197,14 @@ const DashboardHeader = () => {
                       />
                       <Separator className='my-4'/>
                       </div>
-                        <div>
+                        <div className='col-span-2'>
                           <FormField
                                 control={form.control}
                                 name="date"
                                 render={({ field }) => (
                                   <FormItem className="flex flex-col">
-                                    <FormLabel>Date of birth</FormLabel>
-                                    <Popover>
+                                    <FormLabel>Date of Transaction</FormLabel>
+                                    <Popover modal={true}>
                                       <PopoverTrigger asChild>
                                         <FormControl>
                                           <Button
@@ -187,7 +223,7 @@ const DashboardHeader = () => {
                                           </Button>
                                         </FormControl>
                                       </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0" align="start">
+                                      <PopoverContent className="w-auto p-0" align="center" side='left'>
                                         <Calendar
                                           mode="single"
                                           selected={field.value}
@@ -228,13 +264,48 @@ const DashboardHeader = () => {
                           />
                           <Separator className='my-4'/>
                         </div>
+                        <div>
+                          <FormField
+                            control={form.control}
+                            name="category"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Transaction Category</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} >
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select a Category" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent side='right'>
+                                        <SelectItem value="Income">Income</SelectItem>
+                                        <SelectItem value="Housing">Housing</SelectItem>
+                                        <SelectItem value="Food">Food</SelectItem>
+                                        <SelectItem value="Transportation">Transportation</SelectItem>
+                                        <SelectItem value="Subscriptions">Subscriptions</SelectItem>
+                                        <SelectItem value="Bills">Bills</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Separator className='my-4'/>
+                        </div>
+                    <Button
+                    type="submit"
+                    className="col-start-2 col-span-2 bg-primary hover:bg-primary/80 text-white">
+                    Add Transaction
+                    </Button>
                   </form>
+
                 </Form>
               </CardContent>
             </Card>
             </DrawerHeader>
             <DrawerFooter>
-              <Button type="submit" onClick={handleAddTransaction}>Add Transaction</Button>
+              
             </DrawerFooter>
           </DrawerContent>
         </Drawer>

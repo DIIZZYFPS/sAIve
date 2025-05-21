@@ -54,9 +54,10 @@ def read_user_asset(user_asset_id: int):
         raise HTTPException(status_code=404, detail="User asset not found")
     return db_user_asset
 
-@app.post("/transactions/", response_model=models.Transaction)
-def create_transaction(transaction: models.Transaction):
-    return crud.create_transaction(transaction)
+@app.post("/transactions/")
+def create_transaction(transaction: models.TransactionCreate):
+    crud.create_transaction(transaction)
+    return {"detail": "Transaction created successfully"}
 @app.get("/transactions/", response_model=list[models.Transaction])
 def get_all_transactions():
     transactions = crud.get_all_transactions()
