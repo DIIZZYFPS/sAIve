@@ -9,13 +9,19 @@ class User(BaseModel):
     net_worth: float
 
 class UserAsset(BaseModel):
-    id: int
+    id: Optional[int] = None
     user_id: int
     year: int
     month: int
     TIncome: float
     TExpense: float
     TSavings: float
+    net_worth: float
+
+class UserAssetWithUser(BaseModel):
+    asset: UserAsset
+    previous_asset: Optional[UserAsset] = None
+    user: User
 
 class TransactionType(str, Enum):
     income = "income"
