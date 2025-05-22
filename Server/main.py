@@ -117,7 +117,7 @@ def month_update(user_id: int, transactions: list[models.TransactionCreate]):
             TIncome=TotalIncome,
             TExpense=TotalExpense,
             TSavings=TotalSavings,
-            curr_net_worth=curr_net_worth
+            net_worth=curr_net_worth
         )
         crud.create_user_asset(user_asset_obj)
     for transaction in transactions:
@@ -137,7 +137,7 @@ def month_update(user_id: int, transactions: list[models.TransactionCreate]):
         TIncome=TotalIncome,
         TExpense=TotalExpense,
         TSavings=TotalSavings,
-        curr_net_worth=curr_net_worth
+        net_worth=curr_net_worth
     )
     crud.update_user_asset(user_asset_obj)
 

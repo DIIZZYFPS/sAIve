@@ -75,7 +75,7 @@ def get_user_asset(user_asset_id: int, current_year: int, current_month: int ):
     conn.close()
 
     if row:
-        return UserAsset(id=row['id'], user_id=row['user_id'], year=row['year'], month=row['month'], TIncome=row['TIncome'], TExpense=row['TExpense'], TSavings=row['TSavings'])
+        return UserAsset(id=row['id'], user_id=row['user_id'], year=row['year'], month=row['month'], TIncome=row['TIncome'], TExpense=row['TExpense'], TSavings=row['TSavings'], net_worth=row['NetWorth'])
     return None
 
 def has_asset(user_id: int):
@@ -100,9 +100,9 @@ def update_user_asset(user_asset: UserAsset):
 
     cursor.execute('''
         UPDATE user_assets
-        SET user_id = ?, year = ?, month = ?, TIncome = ?, TExpense = ?, TSavings = ?
+        SET user_id = ?, year = ?, month = ?, TIncome = ?, TExpense = ?, TSavings = ?, NetWorth = ?
         WHERE id = ?
-    ''', (user_asset.user_id, user_asset.year, user_asset.month, user_asset.TIncome, user_asset.TExpense, user_asset.TSavings, user_asset.id))
+    ''', (user_asset.user_id, user_asset.year, user_asset.month, user_asset.TIncome, user_asset.TExpense, user_asset.TSavings, user_asset.net_worth, user_asset.id))
 
     conn.commit()
     conn.close()

@@ -31,6 +31,7 @@ def create_tables():
             TIncome REAL NOT NULL,
             TExpense REAL NOT NULL,
             TSavings REAL NOT NULL,
+            NetWorth REAL NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')

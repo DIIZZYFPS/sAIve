@@ -57,8 +57,7 @@ const OverviewCards = () => {
     const {
     data: asset = [],
     isLoading,
-    isError,
-    refetch,
+    isError
   } = useQuery({
     queryKey: ["asset"],
     queryFn: async () => {
@@ -107,19 +106,19 @@ const OverviewCards = () => {
               : `$${asset.user.net_worth}`
         }
         change={
-          asset.previous_asset == null || !asset.previous_asset.user
+          asset.previous_asset == null || !asset.previous_asset.net_worth
             ? "No Change"
-            : asset.previous_asset.user.net_worth === 0
+            : asset.previous_asset.net_worth === 0
               ? "No Change"
               : `${(
-                  ((asset.user?.net_worth ?? 0) - (asset.previous_asset.user?.net_worth ?? 0)) /
-                  (asset.previous_asset.user?.net_worth ?? 1) * 100
+                  ((asset.user?.net_worth ?? 0) - (asset.previous_asset?.net_worth ?? 0)) /
+                  (asset.previous_asset?.net_worth ?? 1) * 100
                 ).toFixed(2)}% from last month`
         }
         isPositive={
-          asset.previous_asset == null || !asset.previous_asset.user
+          asset.previous_asset == null || !asset.previous_asset.net_worth
             ? true
-            : (asset.user?.net_worth ?? 0) > (asset.previous_asset.user?.net_worth ?? 0)
+            : (asset.user?.net_worth ?? 0) > (asset.previous_asset?.net_worth ?? 0)
         }
         icon={<TrendingUp className="h-5 w-5 text-income" />}
         iconColor="#2dd4bf"
