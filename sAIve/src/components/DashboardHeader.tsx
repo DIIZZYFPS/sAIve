@@ -82,20 +82,24 @@ const DashboardHeader = () => {
     };
     
     // Call the API to add the transaction
-    const promise = () => api.post("/transactions", payload);
-    toast.promise(promise, {
-      loading: "Adding transaction...",
-      success: "Transaction added successfully",
-      error: (err) => {
-        if (err.response) {
-          return err.response.data.message;
+    toast.promise(
+      api.post("/transactions/", payload).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["asset"] });
+        queryClient.invalidateQueries({ queryKey: ["assets"] });
+        setIsOpen(false);
+      }),
+      {
+        loading: "Adding transaction...",
+        success: "Transaction added successfully",
+        error: (err) => {
+          if (err.response) {
+            return err.response.data.message;
+          }
+          return "Error adding transaction";
         }
-        return "Error adding transaction";
       }
-    });
-    queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    // Close the drawer after adding the transaction
-    setIsOpen(false);
+    );
   };
 
   // Form validation schema

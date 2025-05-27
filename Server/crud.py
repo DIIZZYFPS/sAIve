@@ -107,6 +107,25 @@ def update_user_asset(user_asset: UserAsset):
     conn.commit()
     conn.close()
     return user_asset
+
+def get_all_user_assets(user_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM user_assets
+        WHERE user_id = ?
+    ''', (user_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    user_assets = []
+    for row in rows:
+        user_assets.append(UserAsset(id=row['id'], user_id=row['user_id'], year=row['year'], month=row['month'], TIncome=row['TIncome'], TExpense=row['TExpense'], TSavings=row['TSavings'], net_worth=row['NetWorth']))
+    
+    return user_assets
+
 def delete_user_asset(user_asset_id: int):
     conn = create_connection()
     cursor = conn.cursor()

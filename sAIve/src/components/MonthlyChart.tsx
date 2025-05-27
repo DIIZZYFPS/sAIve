@@ -9,65 +9,66 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 1000, mobile: 140 },
-]
+
 
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
+  expenses: {
+    label: "Expenses",
     color: "var(--chart-5)",
-  },
-  mobile: {
-    label: "Mobile",
-    color: "var(--chart-5)",
-  },
+  }
 } satisfies ChartConfig
 
-export function MonthlyChart() {
+const monthNames = [
+  "", // so that month numbers match index (1-based)
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+
+const getChartData = ({ assets }: { assets: any }) => {
+  return Array.isArray(assets)
+    ? assets
+        .map(item => ({
+          ...item,
+          month: monthNames[item.month] || String(item.month)
+        }))
+        .slice() // create a shallow copy
+        .reverse()
+    : [];
+};
+
+
+export function MonthlyChart({ assets }: { assets: any }) {
+  // Convert numerical months to text months
+  const chartData = getChartData({ assets });
+
   return (
-        <ChartContainer config={chartConfig} className="mx-auto max-h-[500px] w-full">
-            
-          <LineChart
-            accessibilityLayer
-            data={chartData}
-            margin={{
-              left: 10,
-              right: 10,
-                top: 10,
-                bottom: 10,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={(value) => value.slice(0, 3)}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="line" />}
-            />
-            <Line
-              dataKey="desktop"
-              animationEasing="ease"
-              type="natural"
-              stroke="var(--color-desktop)"
-              strokeWidth={2}
-              dot={{ fill: "var(--color-desktop)" }}
-              activeDot={{
-                r: 6,
-              }}
-            />
-          </LineChart>
-          
-        </ChartContainer>
-  )
+    <ChartContainer config={chartConfig} className="mx-auto max-h-[500px] w-full">
+      <LineChart
+        accessibilityLayer
+        data={chartData}
+        margin={{ left: 20, right: 10, top: 10, bottom: 10 }}
+      >
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="month"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={5}
+        />
+        <ChartTooltip
+          cursor={false}
+          content={<ChartTooltipContent indicator="line" />}
+        />
+        <Line
+          dataKey="TExpense"
+          animationEasing="ease"
+          type="linear"
+          stroke="var(--color-expenses)"
+          strokeWidth={2}
+          dot={{ fill: "var(--color-expenses)" }}
+          activeDot={{ r: 6 }}
+        />
+      </LineChart>
+    </ChartContainer>
+  );
 }

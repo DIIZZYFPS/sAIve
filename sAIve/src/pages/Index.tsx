@@ -7,11 +7,30 @@ import TransactionsTable from "@/components/TransactionsTable";
 import { MonthlyChart } from "@/components/MonthlyChart";
 import { MonthlyRadioChart } from "@/components/MonthlyRadioChart";
 import { ResponsiveContainer } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 
-const Index = () => {
+type IndexProps = {
+    transactions: any; 
+    isLoading: boolean;
+    isError: boolean;
+    refetch: () => void;
+};
+
+function Index({ transactions, isLoading, isError, refetch }: IndexProps) {
     useEffect(() => {
         document.title = "sAIve - AI Powered Budgeting Application"
     }, []);
+
+    const {
+    data: assets = [],
+  } = useQuery({
+    queryKey: ["assets"],
+    queryFn: async () => {
+      const response = await api.get("/user_assets/1/all");
+      return response.data;
+    },
+  });
 
     return (
     <div className="flex h-screen overflow-hidden">
@@ -30,7 +49,7 @@ const Index = () => {
               <CardContent className="pt-4">
                 <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <MonthlyChart />
+                        <MonthlyChart assets={assets} />
                     </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -52,7 +71,13 @@ const Index = () => {
               </CardHeader>
               <CardContent className="pt-4">
                 <div className="h-[300px]">
-                    <TransactionsTable pageSize={5} />
+                  {TransactionsTable(
+                    { pageSize: 5 },
+                    transactions,
+                    isLoading,
+                    isError,
+                    refetch
+                  )}
                 </div>
               </CardContent>
             </Card>
