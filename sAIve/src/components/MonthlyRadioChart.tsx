@@ -27,13 +27,11 @@ const chartConfig = {
 
 export function MonthlyRadioChart() {
   return (
-    
-        <ChartContainer
-          config={chartConfig}
-          className="mx-auto aspect-square max-h-[500px] w-full"
-          
-        >
-          <RadarChart data={chartData} margin={{
+    <ChartContainer
+      config={chartConfig}
+      className="mx-auto aspect-square max-h-[500px] w-full"
+    >
+      <RadarChart data={chartData} margin={{
               left: 20,
               right: 10,
                 top: 10,

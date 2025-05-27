@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import models
 import crud
 import database
+from typing import List
 
 app = FastAPI()
 
@@ -64,6 +65,10 @@ def get_user_asset(user_id: int):
     if db_user_asset is None:
         raise HTTPException(status_code=404, detail="User asset not found")
     return models.UserAssetWithUser(asset=db_user_asset, previous_asset=previous_user_asset, user=user)
+
+@app.get("/user_assets/{user_id}/all", response_model=List[models.UserAsset])
+def get_user_asset_history(user_id: int):
+    return crud.get_all_user_assets(user_id)
 
 # Transaction endpoints
 @app.post("/transactions/")

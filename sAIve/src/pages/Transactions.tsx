@@ -4,8 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import TransactionsTable from "@/components/TransactionsTable";
 
 
+type TransactionProps = {
+    transactions: any; 
+    isLoading: boolean;
+    isError: boolean;
+    refetch: () => void;
+};
 
-export default function Transactions() {
+export default function Transactions({ transactions, isLoading, isError, refetch }: TransactionProps) {
 
 
     return (
@@ -20,7 +26,13 @@ export default function Transactions() {
                                 <CardTitle className="text-xl">Transactions</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4">
-                               <TransactionsTable pageSize={100}/>
+                               {TransactionsTable(
+                                                   { pageSize: 17 },
+                                                   transactions,
+                                                   isLoading,
+                                                   isError,
+                                                   refetch
+                                                 )}
                             </CardContent>
                         </Card>
                     </div>

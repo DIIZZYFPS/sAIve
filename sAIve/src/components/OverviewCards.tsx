@@ -64,25 +64,48 @@ const OverviewCards = () => {
       const response = await api.get("/user_asset/1");
       return response.data;
     },
-    refetchInterval: 1000
   });
-  
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
       <StatCard 
         title="Total Income"
-        value= {isLoading ? "Loading..." : `$${asset.asset.TIncome}`}
-        change={asset.previous_asset == null ? "No Change" : `${((asset.asset.TIncome - asset.previous_asset.TIncome) / asset.previous_asset.TIncome * 100).toFixed(2)}% from last month`}
-        isPositive={asset.previous_asset == null ? true : asset.asset.TIncome > asset.previous_asset.TIncome}
+        value={isLoading ? "Loading..." : `$${asset.asset.TIncome}`}
+        change={
+          asset.previous_asset == null
+            ? "No Change"
+            : `${(
+                (asset.asset.TIncome - asset.previous_asset.TIncome) /
+                asset.previous_asset.TIncome *
+                100
+              ).toFixed(2)}% from last month`
+        }
+        isPositive={
+          asset.previous_asset == null
+            ? true
+            : asset.asset.TIncome > asset.previous_asset.TIncome
+        }
         icon={<DollarSign className="h-5 w-5 text-income" />}
         iconColor="#2dd4bf"
       />
       
       <StatCard 
         title="Total Expenses"
-        value= {isLoading ? "Loading..." : `$${asset.asset.TExpense}`}
-        change={asset.previous_asset == null ? "No Change" : `${((asset.asset.TExpense - asset.previous_asset.TExpense) / asset.previous_asset.TExpense * 100).toFixed(2)}% from last month`}
-        isPositive={asset.previous_asset == null ? true : asset.asset.TExpense > asset.previous_asset.TExpense}
+        value={isLoading ? "Loading..." : `$${asset.asset.TExpense}`}
+        change={
+          asset.previous_asset == null
+            ? "No Change"
+            : `${(
+                (asset.asset.TExpense - asset.previous_asset.TExpense) /
+                asset.previous_asset.TExpense *
+                100
+              ).toFixed(2)}% from last month`
+        }
+        isPositive={
+          asset.previous_asset == null
+            ? true
+            : asset.asset.TExpense < asset.previous_asset.TExpense
+        }
         icon={<TrendingDown className="h-5 w-5 text-expense" />}
         iconColor="#f43f5e"
       />

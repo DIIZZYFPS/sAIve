@@ -8,10 +8,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+
 import { useState, type Key, type ReactElement, } from "react";
 import { TrendingUp, TrendingDown, ChevronRight, ChevronLeft } from "lucide-react";
-import api from "@/lib/api";
+
 
 interface Transaction {
   date: string;
@@ -24,23 +24,11 @@ type TransactionsTableProps = {
   pageSize?: number;
 };
 
-export default function TransactionsTable({ pageSize = 10 }: TransactionsTableProps) {
+export default function TransactionsTable({ pageSize = 10 }: TransactionsTableProps, transactions = [], isLoading = false, isError = false, refetch: () => void ) {
   const [page, setPage] = useState(0);
 
   // React Query fetch
-  const {
-    data: transactions = [],
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["transactions"],
-    queryFn: async () => {
-      const response = await api.get("/transactions");
-      return response.data;
-    },
-    refetchInterval: 1000
-  });
+
 
   const pageCount = Math.ceil(transactions.length / pageSize);
   const paginated = transactions.slice().reverse().slice(page * pageSize, (page + 1) * pageSize);
