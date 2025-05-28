@@ -1,6 +1,6 @@
 "use client"
 
-import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
 
 import type { ChartConfig } from "@/components/ui/chart"
@@ -51,10 +51,11 @@ export function MonthlyChart({ assets }: { assets: any }) {
         <CartesianGrid vertical={false} />
         <XAxis
           dataKey="month"
-          tickLine={false}
-          axisLine={false}
+          tickLine={true}
+          axisLine={true}
           tickMargin={5}
         />
+        
         <ChartTooltip
           cursor={false}
           content={<ChartTooltipContent indicator="line" />}
