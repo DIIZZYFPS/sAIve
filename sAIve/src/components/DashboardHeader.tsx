@@ -77,7 +77,7 @@ const DashboardHeader = () => {
       recipient: values.title,
       date: values.date ? values.date.toISOString().slice(0, 10) : undefined,
       amount: values.amount,
-      category: "Food",
+      category: values.category,
       type: values.type,
     };
     
@@ -87,6 +87,7 @@ const DashboardHeader = () => {
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
         queryClient.invalidateQueries({ queryKey: ["asset"] });
         queryClient.invalidateQueries({ queryKey: ["assets"] });
+        queryClient.invalidateQueries({ queryKey: ["categories"] });
         setIsOpen(false);
       }),
       {

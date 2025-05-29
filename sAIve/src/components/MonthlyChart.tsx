@@ -1,7 +1,8 @@
 "use client"
 
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
-
+import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 
 import type { ChartConfig } from "@/components/ui/chart"
 import {
@@ -18,7 +19,24 @@ const chartConfig = {
   }
 } satisfies ChartConfig
 
-const monthNames = [
+
+
+
+
+export function MonthlyChart() {
+  // Convert numerical months to text months
+
+  const {
+    data: assets = [],
+  } = useQuery({
+    queryKey: ["assets"],
+    queryFn: async () => {
+      const response = await api.get("/user_assets/1/all");
+      return response.data;
+    },
+  });
+
+  const monthNames = [
   "", // so that month numbers match index (1-based)
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
@@ -36,9 +54,6 @@ const getChartData = ({ assets }: { assets: any }) => {
     : [];
 };
 
-
-export function MonthlyChart({ assets }: { assets: any }) {
-  // Convert numerical months to text months
   const chartData = getChartData({ assets });
 
   return (
