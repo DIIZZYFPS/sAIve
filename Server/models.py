@@ -23,6 +23,11 @@ class UserAssetWithUser(BaseModel):
     previous_asset: Optional[UserAsset] = None
     user: User
 
+class AssetCategory(BaseModel):
+    category: str
+    Amount: float
+
+
 class TransactionType(str, Enum):
     income = "income"
     expense = "expense"

@@ -126,6 +126,27 @@ def get_all_user_assets(user_id: int):
     
     return user_assets
 
+def get_assets_by_all_category(user_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+                   SELECT category, SUM(amount) as total_amount
+                     FROM transactions
+                     WHERE user_id = ?
+                     GROUP BY category
+                     ORDER BY category
+    ''', (user_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    cat_spends = []
+    for row in rows:
+        cat_spends.append({'category': row['category'], 'Amount': row['total_amount']})
+
+    return cat_spends
+
 def delete_user_asset(user_asset_id: int):
     conn = create_connection()
     cursor = conn.cursor()

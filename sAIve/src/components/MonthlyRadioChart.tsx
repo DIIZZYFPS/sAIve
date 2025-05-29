@@ -9,14 +9,9 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-const chartData = [
-  { to: "Housing", expense: 186 },
-  { to: "Bills", expense: 305 },
-  { to: "Food", expense: 237 },
-  { to: "Subscriptions", expense: 273 },
-  { to: "Transportation", expense: 209 },
-  { to: "Other", expense: 214 },
-]
+import api from "@/lib/api"
+import { useQuery } from "@tanstack/react-query"
+
 
 const chartConfig = {
   expense: {
@@ -26,24 +21,42 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function MonthlyRadioChart() {
+
+
+  const {
+    data: categories = [],
+  } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const response = await api.get("/user_assets/1/category");
+      return response.data;
+    },
+  });
+
+  const chartData = categories.filter((c: { category: string }) => c.category !== "Income");
+
   return (
     <ChartContainer
       config={chartConfig}
       className="mx-auto aspect-square max-h-[500px] w-full"
     >
       <RadarChart data={chartData} margin={{
-              left: 20,
+              left: 30,
               right: 10,
                 top: 10,
                 bottom: 10,
             }}>
             <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line"/>} />
-            <PolarAngleAxis dataKey="to" />
+            <PolarAngleAxis dataKey="category" />
             <PolarGrid />
             <Radar
-              dataKey="expense"
+              dataKey="Amount"
               fill="var(--color-expense)"
               fillOpacity={0.6}
+              dot={{
+                r: 4,
+                fillOpacity: 1,
+              }}
             />
           </RadarChart>
         </ChartContainer>

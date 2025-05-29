@@ -69,6 +69,9 @@ def get_user_asset(user_id: int):
 @app.get("/user_assets/{user_id}/all", response_model=List[models.UserAsset])
 def get_user_asset_history(user_id: int):
     return crud.get_all_user_assets(user_id)
+@app.get("/user_assets/{user_id}/category", response_model=List[models.AssetCategory])
+def get_category_summary(user_id: int):
+    return crud.get_assets_by_all_category(user_id)
 
 # Transaction endpoints
 @app.post("/transactions/")
