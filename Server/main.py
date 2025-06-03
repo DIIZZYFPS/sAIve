@@ -140,7 +140,7 @@ def month_update(user_id: int, transactions: list[models.TransactionCreate]):
                 TotalIncome += transaction.amount
             elif transaction.type == "expense":
                 TotalExpense += transaction.amount
-    TotalIncome += OverFlow if 'OverFlow' in locals() else 0
+    TotalIncome += OverFlow
     TotalSavings = TotalIncome - TotalExpense 
     user_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month)
     if user_asset is None:
