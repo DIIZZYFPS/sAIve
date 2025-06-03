@@ -32,18 +32,11 @@ function Index({ transactions, isLoading, isError, refetch }: IndexProps) {
             <OverviewCards />
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="glass-card border-border/50 lg:col-span-2">
-              <CardHeader className="pb-0">
-                <CardTitle className="text-lg">Monthly Expense Trends</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="h-[300px]">
+            <div className="lg:col-span-2">
                     <ResponsiveContainer width="100%" height="100%">
                         <MonthlyChart  />
-                    </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+                    </ResponsiveContainer>  
+            </div>
             <Card className="glass-card border-border/50">
               <CardHeader className="pb-0">
                 <CardTitle className="text-lg">Expense Overview</CardTitle>
