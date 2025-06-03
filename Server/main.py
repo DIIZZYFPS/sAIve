@@ -112,12 +112,18 @@ def month_update(user_id: int, transactions: list[models.TransactionCreate]):
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     CURR_DATE = datetime.now()
+
+    curr_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month)
+    last_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month - 1) if CURR_DATE.month > 1 else crud.get_user_asset(user_id, CURR_DATE.year - 1, 12)
+    if last_asset is not None: 
+        OverFlow = last_asset.TSavings
+
     TotalIncome = 0
     TotalExpense = 0
     TotalSavings = 0
     curr_net_worth = user.net_worth
 
-    if CURR_DATE.day == 1 or not crud.has_asset(user_id):
+    if curr_asset is None or not crud.has_asset(user_id):
         user_asset_obj = models.UserAsset(
             user_id=user_id,
             year=CURR_DATE.year,
@@ -129,11 +135,13 @@ def month_update(user_id: int, transactions: list[models.TransactionCreate]):
         )
         crud.create_user_asset(user_asset_obj)
     for transaction in transactions:
-        if transaction.type == "income":
-            TotalIncome += transaction.amount
-        elif transaction.type == "expense":
-            TotalExpense += transaction.amount
-    TotalSavings = TotalIncome - TotalExpense
+        if transaction.date.month == CURR_DATE.month and transaction.date.year == CURR_DATE.year:
+            if transaction.type == "income":
+                TotalIncome += transaction.amount
+            elif transaction.type == "expense":
+                TotalExpense += transaction.amount
+    TotalIncome += OverFlow if 'OverFlow' in locals() else 0
+    TotalSavings = TotalIncome - TotalExpense 
     user_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month)
     if user_asset is None:
         raise HTTPException(status_code=404, detail="User asset not found")

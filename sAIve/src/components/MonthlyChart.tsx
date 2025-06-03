@@ -50,7 +50,6 @@ const getChartData = ({ assets }: { assets: any }) => {
           month: monthNames[item.month] || String(item.month)
         }))
         .slice() // create a shallow copy
-        .reverse()
     : [];
 };
 
