@@ -155,11 +155,11 @@ const getChartData = ({ assets }: { assets: any }) => {
           dataKey={datakey}
           animationEasing="ease"
           type="linear"
-          fill ="url(#fillExpense)"
+          fill={`url(#fill${datakey})`}
           fillOpacity={.4}
-          stroke="var(--color-expenses)"
+          stroke={chartConfig[datakey]?.color || "var(--color-default)"}
           strokeWidth={2}
-          dot={{ fill: "var(--color-expenses)" }}
+          dot={{ fill: chartConfig[datakey]?.color || "var(--color-default)" }}
           activeDot={{ r: 6 }}
         />
       </AreaChart>
