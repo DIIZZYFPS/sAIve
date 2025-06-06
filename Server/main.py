@@ -4,7 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import models
 import crud
 import database
-from typing import List
+from typing import List, Optional
+from collections import defaultdict
 
 app = FastAPI()
 
@@ -77,12 +78,14 @@ def get_category_summary(user_id: int):
 @app.post("/transactions/")
 def create_transaction(transaction: models.TransactionCreate):
     crud.create_transaction(transaction)
-    update_networth(transaction.user_id, transaction)
+    update_networth(transaction.user_id, transaction = transaction)
     return {"detail": "Transaction created successfully"}
 @app.get("/transactions/", response_model=list[models.Transaction])
 def get_all_transactions():
     transactions = crud.get_all_transactions()
     month_update(transactions[0].user_id, transactions)
+    organize_assets(transactions[0].user_id, transactions)
+    update_networth(transactions[0].user_id, transactions=transactions)
     return transactions
 
 @app.get("/transactions/{transaction_id}", response_model=models.Transaction)
@@ -95,15 +98,24 @@ def read_transaction(transaction_id: int):
 
 # Non endpoint functions
 
-def update_networth(user_id: int, transaction: models.TransactionCreate):
+def update_networth(user_id: int, transaction: Optional[models.TransactionCreate] = None, transactions: Optional[List[models.TransactionCreate]] = None):
     user = crud.get_user(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    if transaction.type == "income":
-        user.net_worth += transaction.amount
+    if transaction:
+        if transaction.type == "income":
+            user.net_worth += transaction.amount
 
-    elif transaction.type == "expense":
-        user.net_worth -= transaction.amount
+        elif transaction.type == "expense":
+            user.net_worth -= transaction.amount
+    elif transactions:
+        user.net_worth = 0  # Reset net worth for batch processing
+        # Calculate net worth based on all transactions
+        for tx in transactions:
+            if tx.type == "income":
+                user.net_worth += tx.amount
+            elif tx.type == "expense":
+                user.net_worth -= tx.amount
 
     crud.update_user(user_id, user)
 
@@ -115,12 +127,14 @@ def month_update(user_id: int, transactions: list[models.TransactionCreate]):
 
     curr_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month)
     last_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month - 1) if CURR_DATE.month > 1 else crud.get_user_asset(user_id, CURR_DATE.year - 1, 12)
-    if last_asset is not None: 
-        OverFlow = last_asset.TSavings
+
 
     TotalIncome = 0
     TotalExpense = 0
     TotalSavings = 0
+    OverFlow = 0
+    if last_asset is not None: 
+        OverFlow = last_asset.TSavings
     curr_net_worth = user.net_worth
 
     if curr_asset is None or not crud.has_asset(user_id):
@@ -157,3 +171,74 @@ def month_update(user_id: int, transactions: list[models.TransactionCreate]):
     )
     crud.update_user_asset(user_asset_obj)
 
+def organize_assets(user_id: int, transactions: list[models.TransactionCreate]):
+    """
+    Organizes assets for the user based on transactions.
+    This function can be expanded to include more complex asset management logic.
+    """
+    assets = crud.get_all_user_assets(user_id)
+    assets_sorted = sorted(assets, key=lambda a: (a.year, a.month))
+
+    for i, asset in enumerate(assets_sorted):
+        # Reset totals for the current asset
+        TotalIncome = 0
+        TotalExpense = 0
+        TotalSavings = 0
+        OverFlow = 0
+        # Grab the overflow from the previous asset if it exists
+        if i > 0:
+            OverFlow = assets_sorted[i - 1].TSavings
+
+        # Filter transactions for the current asset's month and year
+        monTransactions = [t for t in transactions if t.date.month == asset.month and t.date.year == asset.year]
+
+        if not monTransactions:
+            continue  # No transactions for this asset, skip to next
+
+        for transaction in monTransactions:
+            if transaction.type == "income":
+                TotalIncome += transaction.amount
+            elif transaction.type == "expense":
+                TotalExpense += transaction.amount
+        TotalIncome += OverFlow
+        TotalSavings = TotalIncome - TotalExpense
+        
+
+        # Update the asset with the new totals
+        asset.TIncome = TotalIncome
+        asset.TExpense = TotalExpense
+        asset.TSavings = TotalSavings
+        asset.net_worth = asset.TSavings
+        # Commit the changes to the database
+        crud.update_user_asset(asset)
+
+    # Create new assets for transactions that lie outside the current asset's month
+
+    # Build a set of (year, month) tuples from assets
+    asset_months = {(a.year, a.month) for a in assets}
+
+    # Filter transactions whose (year, month) is not in assets
+    excess = [t for t in transactions if (t.date.year, t.date.month) not in asset_months]
+
+    # Organize excess by (year, month)
+    excess_by_month = defaultdict(list)
+    for t in excess:
+        excess_by_month[(t.date.year, t.date.month)].append(t)
+
+    # Now you can easily iterate:
+    for (year, month), txns in excess_by_month.items():
+        TotalIncome = sum(t.amount for t in txns if t.type == "income")
+        TotalExpense = sum(t.amount for t in txns if t.type == "expense")
+        TotalSavings = TotalIncome - TotalExpense
+
+        asset = models.UserAsset(
+            user_id=user_id,
+            year=year,
+            month=month,
+            TIncome=TotalIncome,
+            TExpense=TotalExpense,
+            TSavings=TotalSavings,
+            net_worth=TotalSavings  # Adjust net worth based on savings
+        )
+
+        crud.create_user_asset(asset)

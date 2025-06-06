@@ -56,9 +56,9 @@ def create_user_asset(user_asset: UserAsset):
     cursor = conn.cursor()
 
     cursor.execute('''
-        INSERT INTO user_assets (user_id, year, month, TIncome, TExpense, TSavings)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (user_asset.user_id, user_asset.year, user_asset.month, user_asset.TIncome, user_asset.TExpense, user_asset.TSavings))
+        INSERT INTO user_assets (user_id, year, month, TIncome, TExpense, TSavings, NetWorth)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (user_asset.user_id, user_asset.year, user_asset.month, user_asset.TIncome, user_asset.TExpense, user_asset.TSavings, user_asset.net_worth))
 
     conn.commit()
     conn.close()
@@ -197,6 +197,7 @@ def get_all_transactions():
 
     cursor.execute('''
         SELECT * FROM transactions
+        ORDER BY date ASC
     ''')
 
     rows = cursor.fetchall()

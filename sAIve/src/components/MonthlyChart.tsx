@@ -66,11 +66,13 @@ export function MonthlyChart() {
 const getChartData = ({ assets }: { assets: any }) => {
   return Array.isArray(assets)
     ? assets
+        .slice() // create a shallow copy to avoid mutating the original
+        .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month) // sort by year, then month
         .map(item => ({
           ...item,
           month: monthNames[item.month] || String(item.month)
         }))
-        .slice(-6) // Only keep the last 6 items
+        .slice(-6) // Only keep the last 6 items (most recent)
     : [];
 };
 
