@@ -29,6 +29,7 @@ jobs:
       # This runs 'npm install' to download all the packages listed in your package.json.
       - name: Install Node.js dependencies
         run: npm install
+        working-directory: sAIve
 
       # Step 4: Set up Python
       # This installs Python on the virtual machine.
