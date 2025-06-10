@@ -16,12 +16,12 @@ jobs:
       # Step 1: Check out your repository's code
       # This downloads your project code into the virtual machine so it can be built.
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Step 2: Set up Node.js
       # This step installs Node.js on the virtual machine.
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18' # You can change this to match your project's required Node.js version
 
@@ -57,7 +57,7 @@ jobs:
       # This step takes the built .dmg file from the 'release' directory and uploads it
       # so you can download it from the workflow summary page.
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: saive-macos-build
           path: release/*.dmg
