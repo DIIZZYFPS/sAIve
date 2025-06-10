@@ -13,8 +13,7 @@ function createWindow () {
     height: 600,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), // Optional: if you need a preload script
-      nodeIntegration: false, // Recommended for security
-      contextIsolation: true, // Recommended for security
+      
     },
     autoHideMenuBar: true, // Optional: hide the menu bar
     icon: path.join(__dirname, 'vite.svg'), // Optional: set the window icon
