@@ -2,8 +2,10 @@
   "name": "saive",
   "private": true,
   "version": "0.0.0",
+  "description": "An AI-powered budgeting application.",
+  "author": "Your Name",
   "type": "module",
-  "main": "public/electron.cjs",
+  "main": "dist/electron.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -30,21 +32,23 @@
     "axios": "^1.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "date-fns": "^4.1.0",
     "lucide-react": "^0.511.0",
-    "react": "^19.1.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.56.4",
     "react-router": "^7.6.0",
     "react-router-dom": "^7.6.0",
     "recharts": "^2.15.3",
-    "saive": "file:",
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.3.0",
     "tailwindcss": "^4.1.7",
     "vaul": "^1.1.2",
     "zod": "^3.25.7"
+  },
+  "overrides": {
+    "react-is": "^19.1.0",
+    "date-fns": "^4.1.0",
+    "react": "^19.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
@@ -70,10 +74,20 @@
     "appId": "com.example.sAIve",
     "productName": "sAIve",
     "files": [
-      "dist/**/*",
-      "electron.cjs",
-      "preload.cjs",
+      "dist",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../Server",
+        "to": "app/Server",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "**/node_modules/@amcharts/amcharts5/**/*"
     ],
     "directories": {
       "buildResources": "assets",
@@ -88,8 +102,5 @@
     "linux": {
       "target": "AppImage"
     }
-  },
-  "overrides": {
-    "react-is": "^19.1.0"
   }
 }

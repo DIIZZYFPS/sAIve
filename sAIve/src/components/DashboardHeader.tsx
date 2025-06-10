@@ -68,7 +68,7 @@ import { useQueryClient } from "@tanstack/react-query";
     }),
   });
 
-const DashboardHeader = () => {
+function DashboardHeader({ pageName }: { pageName: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
   const handleAddTransaction = (values: any) => {
@@ -121,8 +121,8 @@ const DashboardHeader = () => {
   return (
     <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between py-4 px-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold capitalize">{location.pathname === '/' ? 'Dashboard Overview' : location.pathname.slice(1)}</h1>
-        <p className="text-muted-foreground">{location.pathname === '/' ? `Welcome back! Here's your financial summary` : null}</p>
+        <h1 className="text-2xl md:text-3xl font-bold capitalize">{pageName === '/' ? 'Dashboard Overview' : pageName}</h1>
+        <p className="text-muted-foreground">{pageName === '/' ? `Welcome back! Here's your financial summary` : null}</p>
       </div>
       
       <div className="flex items-center space-x-3">

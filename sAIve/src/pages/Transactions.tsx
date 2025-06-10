@@ -18,7 +18,7 @@ export default function Transactions({ transactions, isLoading, isError, refetch
         <div className="flex h-screen overflow-hidden">
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-auto">
-                <DashboardHeader />
+                <DashboardHeader pageName="Transactions" />
                 <main className="flex-1 p-6 overflow-auto flex items-center justify-center">
                     <div className="w-full">
                         <Card className="glass-card border-border/50 ">

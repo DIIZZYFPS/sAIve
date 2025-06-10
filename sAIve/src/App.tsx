@@ -1,5 +1,5 @@
 import { Toaster } from 'sonner'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import { useTheme } from "@/components/ThemeProvider"
 
 
@@ -36,7 +36,7 @@ function App() {
   return (
     <>
       <ThemedToaster />
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<Index transactions={transactions} isLoading={isLoading} isError={isError} refetch={refetch} />} />
           <Route path="/flow" element={<Flow />} />
@@ -44,7 +44,7 @@ function App() {
           {/* New Routes above Here */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </>
   );
 }
