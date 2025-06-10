@@ -1,7 +1,10 @@
 // electron.js
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
 const url = require('url');
+
+let pythonProcess = null;
 
 function createWindow () {
   // Create the browser window.
@@ -39,6 +42,33 @@ function createWindow () {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+
+  // --Start the Python server--
+  const serverPath = app.isPackaged
+  ? path.join(process.resourcesPath, 'app', 'Server')
+  : path.join(__dirname, '..', '..', 'Server');
+  
+  const pythonExecutable = process.platform === 'win32' ? 'python.exe' : 'python3';
+  pythonProcess = spawn(pythonExecutable, [
+    '-m', 
+    'uvicorn',
+    'main:app', 
+    '--host', '127.0.0.1',
+    '--port', '8000'
+  ], {
+    cwd: serverPath,
+    stdio: 'pipe'
+  });
+
+  //Logging
+  pythonProcess.stdout.on('data', (data) => {
+    console.log(`Python stdout: ${data}`);
+  });
+  pythonProcess.stderr.on('data', (data) => {
+    console.error(`Python Server Error: ${data}`);
+  });
+  // --End Python Server--
+
   createWindow();
 
   app.on('activate', function () {
@@ -48,11 +78,22 @@ app.whenReady().then(() => {
   });
 });
 
+app.on('will-quit', () => {
+  // Kill the Python process when the app is quitting
+  if (pythonProcess) {
+    console.log('Killing Python process...');
+    pythonProcess.kill();
+    pythonProcess = null;
+  }
+});
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });
 
 // In this file you can include the rest of your app's specific main process
