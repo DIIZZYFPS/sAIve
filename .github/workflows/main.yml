@@ -53,6 +53,7 @@ jobs:
       # This now runs *after* the Python environment is set up and will package it.
       - name: Build application
         run: npm run electron:build
+        working-directory: sAIve
 
       # Step 7: Upload the built application as an artifact
       # This step takes the built .dmg file from the 'release' directory and uploads it
