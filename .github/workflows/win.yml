@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  # Define a job called 'build-macos' to handle the macOS build.
-  build-macos:
+  # Define a job called 'build-windows' to handle the macOS build.
+  build-windows:
     # This tells GitHub Actions to run the job on a virtual machine running the latest version of windows.
     runs-on: windows-latest
 
@@ -45,7 +45,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m venv Server/venv
-          Server/venv/bin/activate
+          ./Server/venv/bin/activate
           pip install --upgrade pip
           pip install -r Server/requirements.txt
 
