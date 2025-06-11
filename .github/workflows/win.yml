@@ -1,0 +1,65 @@
+# Name of the workflow, which will be displayed in the "Actions" tab of your GitHub repository.
+name: Build Electron App
+
+# This workflow runs automatically whenever you push code to the 'main' branch.
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  # Define a job called 'build-macos' to handle the macOS build.
+  build-macos:
+    # This tells GitHub Actions to run the job on a virtual machine running the latest version of windows.
+    runs-on: windows-latest
+
+    steps:
+      # Step 1: Check out your repository's code
+      # This downloads your project code into the virtual machine so it can be built.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js
+      # This step installs Node.js on the virtual machine.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # You can change this to match your project's required Node.js version
+
+      # Step 3: Install Node.js dependencies
+      # This runs 'npm install' to download all the packages listed in your package.json.
+      - name: Install Node.js dependencies
+        run: npm install
+        working-directory: sAIve
+
+      # Step 4: Set up Python
+      # This installs Python on the virtual machine.
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11' # Use a version compatible with your Server/requirements.txt
+
+      # Step 5: Create Python virtual environment and install dependencies
+      # This creates a 'venv' inside your Server directory and installs all the
+      # packages from your requirements.txt file into it. This ensures that
+      # electron-builder packages the Python backend with all its dependencies.
+      - name: Install Python dependencies
+        run: |
+          python -m venv Server/venv
+          Server/venv/bin/activate
+          pip install --upgrade pip
+          pip install -r Server/requirements.txt
+
+      # Step 6: Build the Electron application
+      # This now runs *after* the Python environment is set up and will package it.
+      - name: Build application
+        run: npm run electron:build
+        working-directory: sAIve
+
+      # Step 7: Upload the built application as an artifact
+      # This step takes the built .dmg file from the 'release' directory and uploads it
+      # so you can download it from the workflow summary page.
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: saive-win-build
+          path: sAIve/release/*.dmg
