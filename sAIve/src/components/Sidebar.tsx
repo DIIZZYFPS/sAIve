@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {Link} from 'react-router-dom';
+import {Link, useLocation} from 'react-router-dom';
 import {
   ChevronLeft,
   LayoutDashboard,
@@ -43,6 +43,7 @@ const SidebarItem = ({ icon: Icon, label, to, active, onClick }: SidebarItemProp
 };
 
 const Sidebar = () => {
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     // Get initial state from localStorage or default to false
     const stored = localStorage.getItem('sidebar-collapsed');

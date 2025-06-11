@@ -31,10 +31,7 @@ function createWindow () {
 
   mainWindow.loadURL(startUrl);
 
-  // Open the DevTools if not in production
-  if (process.env.NODE_ENV !== 'production') {
-    mainWindow.webContents.openDevTools();
-  }
+
 }
 
 // This method will be called when Electron has finished
