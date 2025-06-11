@@ -25,7 +25,7 @@ jobs:
 
       - name: Set up portable Python
         run: |
-          curl -L -o python.tar.gz https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.11.7+20240107-aarch64-apple-darwin-install_only.tar.gz
+          curl -L -o python.tar.gz https://github.com/astral-sh/python-build-standalone/releases/download/20250610/cpython-3.11.13+20250610-x86_64-apple-darwin-install_only.tar.gz
           tar -xzf python.tar.gz -C Server/
           mv Server/python Server/venv
 
@@ -67,8 +67,8 @@ jobs:
 
       - name: Set up portable Python
         run: |
-          curl -L -o python.zip https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.11.7+20240107-x86_64-pc-windows-msvc-shared-install_only.zip
-          unzip python.zip -d Server/
+          curl -L -o python.tar.gz https://github.com/astral-sh/python-build-standalone/releases/download/20250610/cpython-3.11.13+20250610-x86_64-pc-windows-msvc-install_only.tar.gz
+          tar -xzf python.tar.gz -C Server/
           mv Server/python Server/venv
 
       - name: Install Python dependencies
