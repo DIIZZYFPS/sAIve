@@ -62,4 +62,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: saive-win-build
-          path: sAIve/release/*.dmg
+          path: sAIve/release/*.exe
