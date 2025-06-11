@@ -1,5 +1,5 @@
 // electron.js
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, net } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
@@ -8,6 +8,29 @@ import fs from 'fs';
 // Recreate __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// --- File Logging Setup ---
+const logFilePath = path.join(app.getPath('userData'), 'app.log');
+const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+
+const log = (message) => {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message.toString().trim()}\n`;
+  logStream.write(logMessage);
+  process.stdout.write(logMessage); // Also log to the console
+};
+
+const error = (message) => {
+  const timestamp = new Date().toISOString();
+  const errorMessage = `[${timestamp}] ERROR: ${message.toString().trim()}\n`;
+  logStream.write(errorMessage);
+  process.stderr.write(errorMessage); // Also log to the console
+};
+
+// Redirect console.log and console.error to our logging functions
+console.log = log;
+console.error = error;
+// --- End File Logging Setup ---
 
 let pythonProcess = null;
 
@@ -22,7 +45,7 @@ function createWindow() {
       nodeIntegration: false,
     },
     autoHideMenuBar: true,
-    icon: path.join(__dirname, '../dist/vite.svg'), 
+    icon: path.join(__dirname, '../dist/vite.svg'),
   });
 
   mainWindow.maximize(); // Maximize the window on startup
@@ -39,7 +62,7 @@ function createWindow() {
   }
 }
 
-const startBackend = () => new Promise((resolve, reject) => {
+const startBackend = () => {
   // Define path to the server directory
   const serverPath = app.isPackaged
     ? path.join(process.resourcesPath, 'app', 'Server')
@@ -56,13 +79,9 @@ const startBackend = () => new Promise((resolve, reject) => {
     const errorMessage = `Python executable not found at: ${pythonExecutable}\n\nPlease ensure the virtual environment is set up correctly in the "Server" directory by running:\ncd Server\npython -m venv venv`;
     console.error(errorMessage);
     dialog.showErrorBox('Backend Error', errorMessage);
-    return reject(new Error(errorMessage));
+    app.quit();
+    return;
   }
-
-  // **IMPROVEMENT:** Add a timeout for backend startup
-  const startupTimeout = setTimeout(() => {
-    reject(new Error('Backend startup timed out after 20 seconds.'));
-  }, 20000); // 20 seconds
   
   // Spawn the backend process
   pythonProcess = spawn(pythonExecutable, [
@@ -72,25 +91,17 @@ const startBackend = () => new Promise((resolve, reject) => {
     stdio: 'pipe'
   });
 
-  const onData = (data) => {
-    const message = data.toString();
-    console.log(`Backend: ${message}`);
-    // Check for the "ready" signal from Uvicorn
-    if (message.includes('Uvicorn running on')) {
-      clearTimeout(startupTimeout); // Clear the timeout
-      console.log('Backend is ready. Proceeding to create window.');
-      resolve(); // Resolve the promise once the server is running
-    }
-  };
-
-  // Uvicorn can log to either stdout or stderr depending on the situation
-  pythonProcess.stdout.on('data', onData);
-  pythonProcess.stderr.on('data', onData);
+  pythonProcess.stdout.on('data', (data) => {
+    console.log(`Backend: ${data}`);
+  });
+  pythonProcess.stderr.on('data', (data) => {
+    console.error(`Backend Error: ${data}`);
+  });
 
   pythonProcess.on('error', (err) => {
-    clearTimeout(startupTimeout);
-    console.error('Failed to start backend process.', err);
-    reject(err);
+    console.error(`Failed to start backend process: ${err}`);
+    dialog.showErrorBox('Backend Error', `Failed to start backend process: ${err.message}`);
+    app.quit();
   });
 
   pythonProcess.on('close', (code) => {
@@ -98,18 +109,59 @@ const startBackend = () => new Promise((resolve, reject) => {
       console.error(`Backend process exited with code ${code}`);
     }
   });
-});
+};
+
+const checkBackendReady = (callback) => {
+  const request = net.request({
+    method: 'GET',
+    protocol: 'http:',
+    hostname: '127.0.0.1',
+    port: 8000,
+    path: '/'
+  });
+  request.on('response', (response) => {
+    callback(response.statusCode === 200);
+  });
+  request.on('error', () => {
+    callback(false);
+  });
+  request.end();
+};
+
+const waitForBackend = (callback) => {
+  let attempts = 0;
+  const maxAttempts = 30; // 30 attempts * 2 seconds = 1 minute timeout
+  const interval = 2000; // 2 seconds
+
+  const tryConnect = () => {
+    checkBackendReady((ready) => {
+      if (ready) {
+        console.log('Backend is ready. Proceeding to create window.');
+        callback();
+      } else {
+        attempts++;
+        if (attempts < maxAttempts) {
+          console.log(`Backend not ready, retrying in ${interval / 1000}s... (attempt ${attempts})`);
+          setTimeout(tryConnect, interval);
+        } else {
+          const errorMessage = 'Backend did not start within the expected time.';
+          console.error(errorMessage);
+          dialog.showErrorBox('Backend Startup Error', errorMessage);
+          app.quit();
+        }
+      }
+    });
+  };
+  tryConnect();
+};
 
 // Make the app startup asynchronous
-app.whenReady().then(async () => {
-  try {
-    await startBackend(); // Wait for the backend to signal it's ready
-    createWindow();       // THEN create the application window
-  } catch (error) {
-    console.error("Failed to start backend, quitting application.", error);
-    dialog.showErrorBox('Backend Startup Error', error.message);
-    app.quit();
-  }
+app.whenReady().then(() => {
+  console.log('App is ready. Starting backend...');
+  startBackend();
+  waitForBackend(() => {
+    createWindow();
+  });
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
