@@ -47,14 +47,10 @@ function createWindow() {
 }
 const startBackend = () => {
   const serverPath = app.isPackaged ? path.join(process.resourcesPath, "app", "Server") : path.join(__dirname, "..", "..", "Server");
-  const pythonExecutable = process.platform === "win32" ? path.join(serverPath, "venv", "Scripts", "python.exe") : path.join(serverPath, "venv", "bin", "python");
+  const pythonExecutable = app.isPackaged ? process.platform === "win32" ? path.join(serverPath, "venv", "Scripts", "python.exe") : path.join(serverPath, "venv", "bin", "python") : "python";
   console.log(`Attempting to start backend with: ${pythonExecutable}`);
-  if (!fs.existsSync(pythonExecutable)) {
-    const errorMessage = `Python executable not found at: ${pythonExecutable}
-
-Please ensure the virtual environment is set up correctly in the "Server" directory by running:
-cd Server
-python -m venv venv`;
+  if (app.isPackaged && !fs.existsSync(pythonExecutable)) {
+    const errorMessage = `Packaged Python executable not found at: ${pythonExecutable}`;
     console.error(errorMessage);
     dialog.showErrorBox("Backend Error", errorMessage);
     app.quit();
@@ -96,6 +92,7 @@ const checkBackendReady = (callback) => {
     hostname: "127.0.0.1",
     port: 8e3,
     path: "/"
+    // The health-check endpoint
   });
   request.on("response", (response) => {
     callback(response.statusCode === 200);

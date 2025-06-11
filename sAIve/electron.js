@@ -63,20 +63,22 @@ function createWindow() {
 }
 
 const startBackend = () => {
-  // Define path to the server directory
   const serverPath = app.isPackaged
     ? path.join(process.resourcesPath, 'app', 'Server')
     : path.join(__dirname, '..', '..', 'Server');
 
-  // Define the platform-specific python executable from the venv
-  const pythonExecutable = process.platform === 'win32'
-    ? path.join(serverPath, 'venv', 'Scripts', 'python.exe')
-    : path.join(serverPath, 'venv', 'bin', 'python');
+  // When packaged, we look for the python executable inside a 'venv' directory.
+  // In development, we assume 'python' is in the system's PATH.
+  const pythonExecutable = app.isPackaged
+    ? (process.platform === 'win32'
+        ? path.join(serverPath, 'venv', 'Scripts', 'python.exe')
+        : path.join(serverPath, 'venv', 'bin', 'python'))
+    : 'python';
 
   console.log(`Attempting to start backend with: ${pythonExecutable}`);
 
-  if (!fs.existsSync(pythonExecutable)) {
-    const errorMessage = `Python executable not found at: ${pythonExecutable}\n\nPlease ensure the virtual environment is set up correctly in the "Server" directory by running:\ncd Server\npython -m venv venv`;
+  if (app.isPackaged && !fs.existsSync(pythonExecutable)) {
+    const errorMessage = `Packaged Python executable not found at: ${pythonExecutable}`;
     console.error(errorMessage);
     dialog.showErrorBox('Backend Error', errorMessage);
     app.quit();
@@ -117,7 +119,7 @@ const checkBackendReady = (callback) => {
     protocol: 'http:',
     hostname: '127.0.0.1',
     port: 8000,
-    path: '/'
+    path: '/' // The health-check endpoint
   });
   request.on('response', (response) => {
     callback(response.statusCode === 200);
@@ -155,7 +157,7 @@ const waitForBackend = (callback) => {
   tryConnect();
 };
 
-// Make the app startup asynchronous
+// App lifecycle
 app.whenReady().then(() => {
   console.log('App is ready. Starting backend...');
   startBackend();
