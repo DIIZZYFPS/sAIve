@@ -25,20 +25,21 @@ function createWindow() {
     icon: path.join(__dirname, '../dist/vite.svg'), 
   });
 
-  // Define the development server URL
+  mainWindow.maximize(); // Maximize the window on startup
+
+  // Define the development server URL and production path
   const devUrl = 'http://localhost:5173/';
+  const prodPath = path.join(__dirname, '../dist/index.html');
 
   // Use loadFile for production and loadURL for development.
   if (app.isPackaged) {
-    // In production, load the built index.html file
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(prodPath);
   } else {
-    // In development, load from the Vite dev server
     mainWindow.loadURL(devUrl);
   }
 }
 
-const startBackend = () => {
+const startBackend = () => new Promise((resolve, reject) => {
   // Define path to the server directory
   const serverPath = app.isPackaged
     ? path.join(process.resourcesPath, 'app', 'Server')
@@ -55,38 +56,60 @@ const startBackend = () => {
     const errorMessage = `Python executable not found at: ${pythonExecutable}\n\nPlease ensure the virtual environment is set up correctly in the "Server" directory by running:\ncd Server\npython -m venv venv`;
     console.error(errorMessage);
     dialog.showErrorBox('Backend Error', errorMessage);
-    app.quit();
-    return;
+    return reject(new Error(errorMessage));
   }
+
+  // **IMPROVEMENT:** Add a timeout for backend startup
+  const startupTimeout = setTimeout(() => {
+    reject(new Error('Backend startup timed out after 20 seconds.'));
+  }, 20000); // 20 seconds
   
   // Spawn the backend process
   pythonProcess = spawn(pythonExecutable, [
-    '-m',
-    'uvicorn',
-    'main:app',
-    '--host', '127.0.0.1',
-    '--port', '8000'
+    '-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'
   ], {
     cwd: serverPath,
     stdio: 'pipe'
   });
 
-  pythonProcess.stdout.on('data', (data) => {
-    console.log(`Backend: ${data}`);
-  });
+  const onData = (data) => {
+    const message = data.toString();
+    console.log(`Backend: ${message}`);
+    // Check for the "ready" signal from Uvicorn
+    if (message.includes('Uvicorn running on')) {
+      clearTimeout(startupTimeout); // Clear the timeout
+      console.log('Backend is ready. Proceeding to create window.');
+      resolve(); // Resolve the promise once the server is running
+    }
+  };
 
-  pythonProcess.stderr.on('data', (data) => {
-    console.error(`Backend Error: ${data}`);
+  // Uvicorn can log to either stdout or stderr depending on the situation
+  pythonProcess.stdout.on('data', onData);
+  pythonProcess.stderr.on('data', onData);
+
+  pythonProcess.on('error', (err) => {
+    clearTimeout(startupTimeout);
+    console.error('Failed to start backend process.', err);
+    reject(err);
   });
 
   pythonProcess.on('close', (code) => {
-    console.log(`Backend process exited with code ${code}`);
+    if (code !== 0) {
+      console.error(`Backend process exited with code ${code}`);
+    }
   });
-};
+});
 
-app.whenReady().then(() => {
-  startBackend();
-  createWindow();
+// Make the app startup asynchronous
+app.whenReady().then(async () => {
+  try {
+    await startBackend(); // Wait for the backend to signal it's ready
+    createWindow();       // THEN create the application window
+  } catch (error) {
+    console.error("Failed to start backend, quitting application.", error);
+    dialog.showErrorBox('Backend Startup Error', error.message);
+    app.quit();
+  }
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

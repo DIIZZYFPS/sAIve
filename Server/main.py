@@ -10,10 +10,7 @@ from collections import defaultdict
 
 app = FastAPI()
 
-origins = [
-    "http://localhost:5173",
-    "https://localhost:5173",
-]
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,

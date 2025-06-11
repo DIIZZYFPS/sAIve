@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from "electron";
+import { app, dialog, BrowserWindow } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
@@ -18,14 +18,16 @@ function createWindow() {
     autoHideMenuBar: true,
     icon: path.join(__dirname, "../dist/vite.svg")
   });
+  mainWindow.maximize();
   const devUrl = "http://localhost:5173/";
+  const prodPath = path.join(__dirname, "../dist/index.html");
   if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+    mainWindow.loadFile(prodPath);
   } else {
     mainWindow.loadURL(devUrl);
   }
 }
-const startBackend = () => {
+const startBackend = () => new Promise((resolve, reject) => {
   const serverPath = app.isPackaged ? path.join(process.resourcesPath, "app", "Server") : path.join(__dirname, "..", "..", "Server");
   const pythonExecutable = process.platform === "win32" ? path.join(serverPath, "venv", "Scripts", "python.exe") : path.join(serverPath, "venv", "bin", "python");
   console.log(`Attempting to start backend with: ${pythonExecutable}`);
@@ -37,9 +39,11 @@ cd Server
 python -m venv venv`;
     console.error(errorMessage);
     dialog.showErrorBox("Backend Error", errorMessage);
-    app.quit();
-    return;
+    return reject(new Error(errorMessage));
   }
+  const startupTimeout = setTimeout(() => {
+    reject(new Error("Backend startup timed out after 20 seconds."));
+  }, 2e4);
   pythonProcess = spawn(pythonExecutable, [
     "-m",
     "uvicorn",
@@ -52,19 +56,37 @@ python -m venv venv`;
     cwd: serverPath,
     stdio: "pipe"
   });
-  pythonProcess.stdout.on("data", (data) => {
-    console.log(`Backend: ${data}`);
-  });
-  pythonProcess.stderr.on("data", (data) => {
-    console.error(`Backend Error: ${data}`);
+  const onData = (data) => {
+    const message = data.toString();
+    console.log(`Backend: ${message}`);
+    if (message.includes("Uvicorn running on")) {
+      clearTimeout(startupTimeout);
+      console.log("Backend is ready. Proceeding to create window.");
+      resolve();
+    }
+  };
+  pythonProcess.stdout.on("data", onData);
+  pythonProcess.stderr.on("data", onData);
+  pythonProcess.on("error", (err) => {
+    clearTimeout(startupTimeout);
+    console.error("Failed to start backend process.", err);
+    reject(err);
   });
   pythonProcess.on("close", (code) => {
-    console.log(`Backend process exited with code ${code}`);
+    if (code !== 0) {
+      console.error(`Backend process exited with code ${code}`);
+    }
   });
-};
-app.whenReady().then(() => {
-  startBackend();
-  createWindow();
+});
+app.whenReady().then(async () => {
+  try {
+    await startBackend();
+    createWindow();
+  } catch (error) {
+    console.error("Failed to start backend, quitting application.", error);
+    dialog.showErrorBox("Backend Startup Error", error.message);
+    app.quit();
+  }
   app.on("activate", function() {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

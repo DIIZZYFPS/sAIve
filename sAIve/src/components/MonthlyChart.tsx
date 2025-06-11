@@ -79,6 +79,7 @@ const getChartData = ({ assets }: { assets: any }) => {
   const chartData = getChartData({ assets });
 
   const [datakey, setDatakey] = useState<string>("TExpense");
+  const [instanceKey] = useState(() => Date.now());
 
   return (
     <Card className="glass-card border-border/50">
@@ -124,89 +125,91 @@ const getChartData = ({ assets }: { assets: any }) => {
         </div>
       </CardHeader>
     <CardContent>
-    <ChartContainer config={chartConfig} className="mx-auto max-h-[500px] w-full">
-      <AreaChart
-        accessibilityLayer
-        data={chartData}
-        margin={{ left: 20, right: 10, top: 10, bottom: 10 }}
-      >
-        <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey="month"
-          tickLine={true}
-          axisLine={true}
-          tickMargin={5}
-        />
+    {chartData.length > 0 && (
+      <ChartContainer config={chartConfig} className="mx-auto max-h-[500px] w-full">
+        <AreaChart
+          key={instanceKey + '-' + datakey + '-' + chartData.map(d => d.month).join('-')} // force remount on data or key change
+          accessibilityLayer
+          data={chartData}
+          margin={{ left: 20, right: 10, top: 10, bottom: 10 }}
+        >
+          <CartesianGrid vertical={false} />
+          <XAxis
+            dataKey="month"
+            tickLine={true}
+            axisLine={true}
+            tickMargin={5}
+          />
 
-        <defs>
-              <linearGradient id="TExpense" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-TExpense)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-TExpense)"
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-              <linearGradient id="TIncome" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-TIncome )"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-TIncome )"
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-              <linearGradient id="TSavings" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="5%"
-                    stopColor="var(--color-TSavings)"
-                    stopOpacity={0.8}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="var(--color-TSavings)"
-                    stopOpacity={0.1}
-                  />
-              </linearGradient>
-              <linearGradient id="net_worth" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="5%"
-                    stopColor="var(--color-net_worth)"
-                    stopOpacity={0.8}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="var(--color-net_worth)"
-                    stopOpacity={0.1}
-                  />
-              </linearGradient>
-            </defs>
-        
-        <ChartTooltip
-          cursor={false}
-          content={<ChartTooltipContent indicator="line" />}
-        />
-        <Area
-          dataKey={datakey}
-          animationEasing="ease"
-          
-          type="linear"
-          fill={`url(#${datakey})`}
-          fillOpacity={.4}
-          stroke={`var(--color-${datakey})`}
-          strokeWidth={2}
-          dot={{ fill: `var(--color-${datakey})` }}
-          activeDot={{ r: 6 }}
-        />
-      </AreaChart>
-    </ChartContainer>
+          <defs>
+            <linearGradient id="TExpense" x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="5%"
+                stopColor="var(--color-TExpense)"
+                stopOpacity={0.8}
+              />
+              <stop
+                offset="95%"
+                stopColor="var(--color-TExpense)"
+                stopOpacity={0.1}
+              />
+            </linearGradient>
+            <linearGradient id="TIncome" x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="5%"
+                stopColor="var(--color-TIncome)"
+                stopOpacity={0.8}
+              />
+              <stop
+                offset="95%"
+                stopColor="var(--color-TIncome)"
+                stopOpacity={0.1}
+              />
+            </linearGradient>
+            <linearGradient id="TSavings" x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="5%"
+                stopColor="var(--color-TSavings)"
+                stopOpacity={0.8}
+              />
+              <stop
+                offset="95%"
+                stopColor="var(--color-TSavings)"
+                stopOpacity={0.1}
+              />
+            </linearGradient>
+            <linearGradient id="net_worth" x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="5%"
+                stopColor="var(--color-net_worth)"
+                stopOpacity={0.8}
+              />
+              <stop
+                offset="95%"
+                stopColor="var(--color-net_worth)"
+                stopOpacity={0.1}
+              />
+            </linearGradient>
+          </defs>
+
+          <ChartTooltip
+            cursor={false}
+            content={<ChartTooltipContent indicator="line" />}
+          />
+          <Area
+            dataKey={datakey}
+            type="linear"
+            fill={`url(#${datakey})`}
+            fillOpacity={.4}
+            stroke={`var(--color-${datakey})`}
+            strokeWidth={2}
+            dot={{ fill: `var(--color-${datakey})` }}
+            activeDot={{ r: 6 }}
+            isAnimationActive={true}
+          />
+        </AreaChart>
+      </ChartContainer>
+    )}
     </CardContent>
     </Card>
   );
