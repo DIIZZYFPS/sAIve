@@ -47,7 +47,7 @@ function createWindow() {
 }
 const startBackend = () => {
   const serverPath = app.isPackaged ? path.join(process.resourcesPath, "app", "Server") : path.join(__dirname, "..", "..", "Server");
-  const pythonExecutable = app.isPackaged ? process.platform === "win32" ? path.join(serverPath, "venv", "Scripts", "python.exe") : path.join(serverPath, "venv", "bin", "python") : "python";
+  const pythonExecutable = app.isPackaged ? process.platform === "win32" ? path.join(serverPath, "venv", "python.exe") : path.join(serverPath, "venv", "bin", "python") : "python";
   console.log(`Attempting to start backend with: ${pythonExecutable}`);
   if (app.isPackaged && !fs.existsSync(pythonExecutable)) {
     const errorMessage = `Packaged Python executable not found at: ${pythonExecutable}`;

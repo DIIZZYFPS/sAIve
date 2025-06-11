@@ -67,13 +67,12 @@ const startBackend = () => {
     ? path.join(process.resourcesPath, 'app', 'Server')
     : path.join(__dirname, '..', '..', 'Server');
 
-  // When packaged, we look for the python executable inside a 'venv' directory.
-  // In development, we assume 'python' is in the system's PATH.
+  // CORRECTED PATHS: Point to the executable in the root of the portable `venv` directory
   const pythonExecutable = app.isPackaged
     ? (process.platform === 'win32'
-        ? path.join(serverPath, 'venv', 'Scripts', 'python.exe')
-        : path.join(serverPath, 'venv', 'bin', 'python'))
-    : 'python';
+        ? path.join(serverPath, 'venv', 'python.exe')
+        : path.join(serverPath, 'venv', 'bin', 'python')) // Adjusted for macOS/Linux portable structure
+    : 'python'; // For development, use the system's python
 
   console.log(`Attempting to start backend with: ${pythonExecutable}`);
 
