@@ -62,4 +62,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: saive-macos-build
-          path: release/*.dmg
+          path: sAIve/release/*.dmg
