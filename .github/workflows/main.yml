@@ -66,10 +66,11 @@ jobs:
         working-directory: sAIve
 
       - name: Set up portable Python
+        shell: powershell
         run: |
-          curl -L -o python.zip https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.11.7+20240107-x86_64-pc-windows-msvc-shared-install_only.zip
-          unzip python.zip -d Server/
-          mv Server/python Server/venv
+          Invoke-WebRequest -Uri https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.11.7+20240107-x86_64-pc-windows-msvc-shared-install_only.zip -OutFile python.zip
+          Expand-Archive -Path python.zip -DestinationPath Server/
+          Move-Item -Path Server/python -Destination Server/venv
 
       - name: Install Python dependencies
         run: |
