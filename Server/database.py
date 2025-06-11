@@ -21,6 +21,13 @@ def create_tables():
         )
     ''')
 
+    # add first user if not exists
+    cursor.execute('SELECT COUNT(*) FROM users')
+    count = cursor.fetchone()[0]
+    if count == 0:
+        cursor.execute('INSERT INTO users (name, net_worth) VALUES (?, ?)', ('Default User', 0.0))
+    conn.commit()
+
     # Create user_assets table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_assets (
