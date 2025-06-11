@@ -23,19 +23,16 @@ jobs:
         run: npm install
         working-directory: sAIve
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies for packaging
+      - name: Set up portable Python
         run: |
-          python -m venv ./.venv
-          source ./.venv/bin/activate
-          pip install --upgrade pip
-          pip install -r Server/requirements.txt
-          # Deactivate after use
-          deactivate
+          curl -L -o python.tar.gz https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.11.7+20240107-aarch64-apple-darwin-install_only.tar.gz
+          tar -xzf python.tar.gz -C Server/
+          mv Server/python Server/venv
+
+      - name: Install Python dependencies
+        run: |
+          Server/venv/bin/python3 -m pip install --upgrade pip
+          Server/venv/bin/python3 -m pip install -r Server/requirements.txt
 
       - name: Build macOS application
         run: npm run electron:build
@@ -68,18 +65,16 @@ jobs:
         run: npm install
         working-directory: sAIve
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies for packaging
+      - name: Set up portable Python
         run: |
-          python -m venv .\.venv
-          .\.venv\Scripts\Activate.ps1
-          pip install --upgrade pip
-          pip install -r Server/requirements.txt
-          # Deactivate is not a standard command on PS, the shell will handle it
+          curl -L -o python.zip https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.11.7+20240107-x86_64-pc-windows-msvc-shared-install_only.zip
+          unzip python.zip -d Server/
+          mv Server/python Server/venv
+
+      - name: Install Python dependencies
+        run: |
+          Server/venv/python.exe -m pip install --upgrade pip
+          Server/venv/python.exe -m pip install -r Server/requirements.txt
 
       - name: Build Windows application
         run: npm run electron:build
