@@ -196,6 +196,7 @@ const getChartData = ({ assets }: { assets: any }) => {
         <Area
           dataKey={datakey}
           animationEasing="ease"
+          
           type="linear"
           fill={`url(#${datakey})`}
           fillOpacity={.4}

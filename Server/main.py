@@ -1,4 +1,5 @@
 from datetime import datetime
+import time
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import models
@@ -69,6 +70,7 @@ def get_user_asset(user_id: int):
 
 @app.get("/user_assets/{user_id}/all", response_model=List[models.UserAsset])
 def get_user_asset_history(user_id: int):
+    time.sleep(.05)
     return crud.get_all_user_assets(user_id)
 @app.get("/user_assets/{user_id}/category", response_model=List[models.AssetCategory])
 def get_category_summary(user_id: int):
@@ -78,14 +80,19 @@ def get_category_summary(user_id: int):
 @app.post("/transactions/")
 def create_transaction(transaction: models.TransactionCreate):
     crud.create_transaction(transaction)
-    update_networth(transaction.user_id, transaction = transaction)
+
+    all_transactions = crud.get_all_transactions()
+
+    month_update(transaction.user_id, all_transactions)
+    organize_assets(transaction.user_id, all_transactions)
+    update_networth(transaction.user_id, transactions = all_transactions)
     return {"detail": "Transaction created successfully"}
+
 @app.get("/transactions/", response_model=list[models.Transaction])
 def get_all_transactions():
     transactions = crud.get_all_transactions()
-    month_update(transactions[0].user_id, transactions)
-    organize_assets(transactions[0].user_id, transactions)
-    update_networth(transactions[0].user_id, transactions=transactions)
+    month_update(1, transactions)
+    
     return transactions
 
 @app.get("/transactions/{transaction_id}", response_model=models.Transaction)
