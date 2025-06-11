@@ -45,7 +45,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m venv Server/venv
-          ./Server/venv/bin/activate
+          .\Server\venv\Scripts\Activate.ps1
           pip install --upgrade pip
           pip install -r Server/requirements.txt
 
