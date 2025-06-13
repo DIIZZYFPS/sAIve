@@ -207,7 +207,7 @@ const getChartData = ({ assets }: { assets: any }) => {
           />
           <Area
             dataKey={datakey}
-            key={instanceKey + '-' + datakey + '-' + chartData.map(d => d.month).join('-')}
+            key={`${instanceKey}-${datakey}-${chartData.map(d => d.month).join('-')}`}
             type="linear"
             fill={`url(#${datakey})`}
             fillOpacity={.4}
