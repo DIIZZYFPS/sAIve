@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-import { useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 
 const chartConfig = {
@@ -80,6 +80,15 @@ const getChartData = ({ assets }: { assets: any }) => {
 
   const [datakey, setDatakey] = useState<string>("TExpense");
   const [instanceKey] = useState(() => Date.now());
+  const [hasLoaded, setHasLoaded] = useState(false);
+    
+  useEffect(() => {
+      if (chartData.length > 0) {
+        setHasLoaded(true);
+      }
+    }, [chartData.length]);
+  
+  const chartKey = useMemo(() => Date.now(), [datakey, chartData]);
 
   return (
     <Card className="glass-card border-border/50">
@@ -125,10 +134,10 @@ const getChartData = ({ assets }: { assets: any }) => {
         </div>
       </CardHeader>
     <CardContent>
-    {chartData.length > 0 && (
+    {hasLoaded ? (
       <ChartContainer config={chartConfig} className="mx-auto max-h-[500px] w-full">
         <AreaChart
-          key={instanceKey + '-' + datakey + '-' + chartData.map(d => d.month).join('-')} // force remount on data or key change
+          key={chartKey}
           accessibilityLayer
           data={chartData}
           margin={{ left: 20, right: 10, top: 10, bottom: 10 }}
@@ -198,6 +207,7 @@ const getChartData = ({ assets }: { assets: any }) => {
           />
           <Area
             dataKey={datakey}
+            key={instanceKey + '-' + datakey + '-' + chartData.map(d => d.month).join('-')}
             type="linear"
             fill={`url(#${datakey})`}
             fillOpacity={.4}
@@ -209,7 +219,7 @@ const getChartData = ({ assets }: { assets: any }) => {
           />
         </AreaChart>
       </ChartContainer>
-    )}
+    ): null}
     </CardContent>
     </Card>
   );

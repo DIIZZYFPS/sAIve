@@ -1,18 +1,21 @@
 import Sidebar from "@/components/Sidebar";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import TransactionsTable from "@/components/TransactionsTable";
+import { TransactionsTable } from "@/components/TransactionsTable";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 
-
-type TransactionProps = {
-    transactions: any; 
-    isLoading: boolean;
-    isError: boolean;
-    refetch: () => void;
+const fetchTransactions = async () => {
+    const response = await api.get("/transactions/");
+    return response.data;
 };
 
-export default function Transactions({ transactions, isLoading, isError, refetch }: TransactionProps) {
-
+export default function Transactions() {
+    // Use the query hook again. It will read from the cache on first load.
+    const { data: transactions = [], isLoading, isError, refetch } = useQuery({
+        queryKey: ['transactions'],
+        queryFn: fetchTransactions,
+    });
 
     return (
         <div className="flex h-screen overflow-hidden">
@@ -26,13 +29,15 @@ export default function Transactions({ transactions, isLoading, isError, refetch
                                 <CardTitle className="text-xl">Transactions</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4">
-                               {TransactionsTable(
-                                                   { pageSize: 17 },
-                                                   transactions,
-                                                   isLoading,
-                                                   isError,
-                                                   refetch
-                                                 )}
+                               <TransactionsTable
+                                   // pageSize prop is part of the component's own logic
+                                   pageSize={17}
+                                   // Pass the query results to the table
+                                   transactions={transactions}
+                                   isLoading={isLoading}
+                                   isError={isError}
+                                   refetch={refetch}
+                                 />
                             </CardContent>
                         </Card>
                     </div>
@@ -40,4 +45,4 @@ export default function Transactions({ transactions, isLoading, isError, refetch
             </div>
         </div>
     );
-    }
+}

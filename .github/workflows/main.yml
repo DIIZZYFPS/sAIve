@@ -125,5 +125,5 @@ jobs:
             release/*.dmg
             release/*.exe
           tag_name: v${{ steps.get_version.outputs.VERSION }}
-          release_name: Release v${{ steps.get_version.outputs.VERSION }}
+          name: Release v${{ steps.get_version.outputs.VERSION }}
           body: "Automated release of macOS and Windows builds."

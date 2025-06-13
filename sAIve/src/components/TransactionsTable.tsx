@@ -24,7 +24,12 @@ type TransactionsTableProps = {
   pageSize?: number;
 };
 
-export default function TransactionsTable({ pageSize = 10 }: TransactionsTableProps, transactions = [], isLoading = false, isError = false, refetch: () => void ) {
+export function TransactionsTable({ pageSize = 10, transactions, isLoading, isError, refetch }: TransactionsTableProps & {
+    transactions: Transaction[];
+    isLoading: boolean;
+    isError: boolean;
+    refetch: () => void;
+}) {
   const [page, setPage] = useState(0);
 
   // React Query fetch
