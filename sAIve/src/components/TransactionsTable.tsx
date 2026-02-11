@@ -12,8 +12,13 @@ import { Button } from "@/components/ui/button";
 import { useState, type Key, type ReactElement, } from "react";
 import { TrendingUp, TrendingDown, ChevronRight, ChevronLeft } from "lucide-react";
 
+import { Trash2 } from "lucide-react";
+import api from "@/lib/api";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Transaction {
+  id: number;
   date: string;
   type: string;
   amount: number;
@@ -25,14 +30,30 @@ type TransactionsTableProps = {
 };
 
 export function TransactionsTable({ pageSize = 10, transactions, isLoading, isError, refetch }: TransactionsTableProps & {
-    transactions: Transaction[];
-    isLoading: boolean;
-    isError: boolean;
-    refetch: () => void;
+  transactions: Transaction[];
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
 }) {
   const [page, setPage] = useState(0);
+  const queryClient = useQueryClient();
 
-  // React Query fetch
+  const handleDelete = (id: number) => {
+    toast.promise(
+      api.delete(`/transactions/${id}`).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["asset"] });
+        queryClient.invalidateQueries({ queryKey: ["assets"] });
+        queryClient.invalidateQueries({ queryKey: ["categories"] });
+        queryClient.invalidateQueries({ queryKey: ["sankeyData"] });
+      }),
+      {
+        loading: "Deleting transaction...",
+        success: "Transaction deleted successfully",
+        error: "Error deleting transaction",
+      }
+    );
+  };
 
 
   const pageCount = Math.ceil(transactions.length / pageSize);
@@ -53,54 +74,60 @@ export function TransactionsTable({ pageSize = 10, transactions, isLoading, isEr
             <TableHead>Status</TableHead>
             <TableHead>Recipient</TableHead>
             <TableHead className="text-right">Amount</TableHead>
+            <TableHead className="text-right">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-            {isLoading ? (
+          {isLoading ? (
             <TableRow>
               <TableCell colSpan={4}>Loading...</TableCell>
             </TableRow>
-            ) : isError ? (
+          ) : isError ? (
             <TableRow>
               <TableCell colSpan={4}>Error loading transactions.</TableCell>
             </TableRow>
-            ) : paginated.length === 0 ? (
+          ) : paginated.length === 0 ? (
             <TableRow>
               <TableCell colSpan={4}>No transactions found.</TableCell>
             </TableRow>
-            ) : (
+          ) : (
             paginated.map(
               (
-              transaction: Transaction,
-              index: Key
+                transaction: Transaction,
+                index: Key
               ): ReactElement => (
-              <TableRow key={index}>
-                <TableCell className="text-medium">
-                {new Date(transaction.date).toLocaleDateString(undefined, {
-                  month: "2-digit",
-                  day: "2-digit",
-                  year: "numeric",
-                })}
-                </TableCell>
-                <TableCell className="capitalize">
-                {transaction.type === "income" ? (
-                  <span className="text-income">
-                  <TrendingUp className="h-4 w-4 inline" /> {transaction.type}
-                  </span>
-                ) : (
-                  <span className="text-expense">
-                  <TrendingDown className="h-4 w-4 inline" /> {transaction.type}
-                  </span>
-                )}
-                </TableCell>
-                <TableCell>{transaction.recipient}</TableCell>
-                <TableCell className="text-right">
-                ${transaction.amount.toFixed(2)}
-                </TableCell>
-              </TableRow>
+                <TableRow key={index}>
+                  <TableCell className="text-medium">
+                    {new Date(transaction.date).toLocaleDateString(undefined, {
+                      month: "2-digit",
+                      day: "2-digit",
+                      year: "numeric",
+                    })}
+                  </TableCell>
+                  <TableCell className="capitalize">
+                    {transaction.type === "income" ? (
+                      <span className="text-income">
+                        <TrendingUp className="h-4 w-4 inline" /> {transaction.type}
+                      </span>
+                    ) : (
+                      <span className="text-expense">
+                        <TrendingDown className="h-4 w-4 inline" /> {transaction.type}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>{transaction.recipient}</TableCell>
+                  <TableCell className="text-right">
+                    ${transaction.amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(transaction.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
               )
             )
-            )}
+          )}
         </TableBody>
       </Table>
 

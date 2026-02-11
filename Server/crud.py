@@ -208,3 +208,37 @@ def get_all_transactions():
         transactions.append(Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient']))
     
     return transactions
+
+def get_transactions_by_month(user_id: int, year: int, month: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    # Use strftime to extract year and month from the YYYY-MM-DD date string
+    cursor.execute('''
+        SELECT * FROM transactions
+        WHERE user_id = ?
+        AND CAST(strftime('%Y', date) AS INTEGER) = ?
+        AND CAST(strftime('%m', date) AS INTEGER) = ?
+        ORDER BY date ASC
+    ''', (user_id, year, month))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    transactions = []
+    for row in rows:
+        transactions.append(Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient']))
+    
+    return transactions
+
+
+def delete_transaction(transaction_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        DELETE FROM transactions WHERE id = ?
+    ''', (transaction_id,))
+
+    conn.commit()
+    conn.close()
