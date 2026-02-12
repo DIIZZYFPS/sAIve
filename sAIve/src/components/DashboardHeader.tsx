@@ -64,6 +64,7 @@ import { cn } from '@/lib/utils';
 
 import api from '@/lib/api';
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useSettings } from "@/context/SettingsContext";
 
 
 
@@ -82,6 +83,7 @@ const formSchema = z.object({
 function DashboardHeader({ pageName }: { pageName: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { formatCurrency, currencySymbol } = useSettings();
 
   // Profile dropdown data
   const { data: userProfile } = useQuery({
@@ -143,7 +145,7 @@ function DashboardHeader({ pageName }: { pageName: string }) {
       }),
       {
         loading: "Repeating transaction...",
-        success: `Repeated: $${lastTransaction.amount} → ${lastTransaction.recipient}`,
+        success: `Repeated: ${formatCurrency(lastTransaction.amount)} → ${lastTransaction.recipient}`,
         error: "Failed to repeat transaction",
       }
     );
@@ -243,15 +245,15 @@ function DashboardHeader({ pageName }: { pageName: string }) {
             <div className="px-4 py-2 space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-muted-foreground"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Income</span>
-                <span className="font-medium text-emerald-400">${income.toLocaleString()}</span>
+                <span className="font-medium text-emerald-400">{formatCurrency(income)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-muted-foreground"><TrendingDown className="h-3.5 w-3.5 text-rose-400" /> Expenses</span>
-                <span className="font-medium text-rose-400">${expense.toLocaleString()}</span>
+                <span className="font-medium text-rose-400">{formatCurrency(expense)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-muted-foreground"><Wallet className="h-3.5 w-3.5 text-blue-400" /> Savings</span>
-                <span className="font-medium text-blue-400">${savings.toLocaleString()}</span>
+                <span className="font-medium text-blue-400">{formatCurrency(savings)}</span>
               </div>
             </div>
             <DropdownMenuSeparator />
@@ -266,7 +268,7 @@ function DashboardHeader({ pageName }: { pageName: string }) {
                 <div className="flex flex-col">
                   <span className="text-sm">Repeat Last Transaction</span>
                   <span className="text-xs text-muted-foreground">
-                    ${lastTransaction.amount} → {lastTransaction.recipient}
+                    {formatCurrency(lastTransaction.amount)} → {lastTransaction.recipient}
                   </span>
                 </div>
               </DropdownMenuItem>
@@ -319,7 +321,7 @@ function DashboardHeader({ pageName }: { pageName: string }) {
                               <FormLabel>Transaction Amount</FormLabel>
                               <FormControl>
                                 <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">$</span>
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">{currencySymbol}</span>
                                   <input
                                     {...field}
                                     type="number"

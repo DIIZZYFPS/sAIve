@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ReferenceLine } from "recha
 import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/api"
 import { useMemo } from "react"
+import { useSettings } from "@/context/SettingsContext"
 
 import type { ChartConfig } from "@/components/ui/chart"
 import {
@@ -24,6 +25,7 @@ interface ExpenseVolatilityChartProps {
 }
 
 export function ExpenseVolatilityChart({ expanded = false }: ExpenseVolatilityChartProps) {
+    const { formatCurrency } = useSettings();
     const { data: history = [], isLoading } = useQuery({
         queryKey: ["statsHistory"],
         queryFn: async () => {
@@ -60,20 +62,20 @@ export function ExpenseVolatilityChart({ expanded = false }: ExpenseVolatilityCh
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={expanded ? 12 : 10} />
                 {expanded && (
-                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tickLine={false} axisLine={false} fontSize={12} />
+                    <YAxis tickFormatter={(v) => formatCurrency(v)} tickLine={false} axisLine={false} fontSize={12} />
                 )}
                 <ReferenceLine
                     y={avgExpense}
                     stroke="#f59e0b"
                     strokeDasharray="5 5"
                     strokeWidth={2}
-                    label={expanded ? { value: `Avg: $${avgExpense}`, position: "insideTopRight", fontSize: 11, fill: "#f59e0b" } : undefined}
+                    label={expanded ? { value: `Avg: ${formatCurrency(avgExpense)}`, position: "insideTopRight", fontSize: 11, fill: "#f59e0b" } : undefined}
                 />
                 <ChartTooltip
                     cursor={false}
                     content={
                         <ChartTooltipContent
-                            formatter={(value) => `$${Number(value).toLocaleString()}`}
+                            formatter={(value) => formatCurrency(Number(value))}
                             indicator="dot"
                         />
                     }

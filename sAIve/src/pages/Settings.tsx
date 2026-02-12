@@ -4,14 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/components/ThemeProvider";
+import { useSettings, CURRENCIES, type CurrencyCode } from "@/context/SettingsContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useState } from "react";
-import { Sun, Moon, Monitor, User, Download, Save } from "lucide-react";
+import { Sun, Moon, Monitor, User, Download, Save, Coins, Bot } from "lucide-react";
 
 const Settings = () => {
     const { theme, setTheme } = useTheme();
+    const { currency, setCurrency, aiEnabled, setAiEnabled, formatCurrency } = useSettings();
     const queryClient = useQueryClient();
 
     // Fetch user profile
@@ -112,6 +114,71 @@ const Settings = () => {
                             </CardContent>
                         </Card>
 
+                        {/* Currency */}
+                        <Card className="glass-card border-border/50">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Coins className="h-5 w-5" />
+                                    Currency
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Choose the currency symbol displayed throughout the app.
+                                </p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {CURRENCIES.map(({ code, symbol, name: currName }) => (
+                                        <button
+                                            key={code}
+                                            onClick={() => setCurrency(code as CurrencyCode)}
+                                            className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all cursor-pointer ${currency === code
+                                                ? "border-primary bg-primary/10"
+                                                : "border-border hover:border-primary/40 hover:bg-muted/50"
+                                                }`}
+                                        >
+                                            <span className="text-lg font-bold">{symbol}</span>
+                                            <span className="text-xs text-muted-foreground">{currName}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* AI Features */}
+                        <Card className="glass-card border-border/50">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Bot className="h-5 w-5" />
+                                    AI Features
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium">Enable AI Features</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Allow AI-powered insights, suggestions, and analysis
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setAiEnabled(!aiEnabled)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${aiEnabled ? "bg-primary" : "bg-muted-foreground/30"
+                                            }`}
+                                    >
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${aiEnabled ? "translate-x-6" : "translate-x-1"
+                                                }`}
+                                        />
+                                    </button>
+                                </div>
+                                <p className="text-xs text-muted-foreground italic">
+                                    {aiEnabled
+                                        ? "AI features are enabled. Smart insights will appear across the app."
+                                        : "AI features are disabled. No AI-powered analysis will be performed."}
+                                </p>
+                            </CardContent>
+                        </Card>
+
                         {/* Profile */}
                         <Card className="glass-card border-border/50">
                             <CardHeader>
@@ -150,7 +217,7 @@ const Settings = () => {
                                         <p className="text-xs text-muted-foreground">Automatically calculated from your transactions</p>
                                     </div>
                                     <span className="text-lg font-bold text-primary">
-                                        {isLoading ? "..." : `$${userData?.net_worth?.toLocaleString() ?? 0}`}
+                                        {isLoading ? "..." : formatCurrency(userData?.net_worth ?? 0)}
                                     </span>
                                 </div>
                             </CardContent>
@@ -183,7 +250,7 @@ const Settings = () => {
                             <CardContent className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">Version</span>
-                                    <span className="text-sm font-mono">0.0.2</span>
+                                    <span className="text-sm font-mono">0.1.1</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">App</span>

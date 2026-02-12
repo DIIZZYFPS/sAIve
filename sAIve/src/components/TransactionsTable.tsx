@@ -16,6 +16,7 @@ import { Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSettings } from "@/context/SettingsContext";
 
 interface Transaction {
   id: number;
@@ -37,6 +38,7 @@ export function TransactionsTable({ pageSize = 10, transactions, isLoading, isEr
 }) {
   const [page, setPage] = useState(0);
   const queryClient = useQueryClient();
+  const { formatCurrency } = useSettings();
 
   const handleDelete = (id: number) => {
     toast.promise(
@@ -117,7 +119,7 @@ export function TransactionsTable({ pageSize = 10, transactions, isLoading, isEr
                   </TableCell>
                   <TableCell>{transaction.recipient}</TableCell>
                   <TableCell className="text-right">
-                    ${transaction.amount.toFixed(2)}
+                    {formatCurrency(Number(transaction.amount.toFixed(2)))}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(transaction.id)}>

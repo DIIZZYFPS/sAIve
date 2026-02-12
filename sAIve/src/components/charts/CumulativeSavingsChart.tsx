@@ -4,6 +4,7 @@ import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { useQuery } from "@tanstack/react-query"
 import api from "@/lib/api"
 import { useMemo } from "react"
+import { useSettings } from "@/context/SettingsContext"
 
 import type { ChartConfig } from "@/components/ui/chart"
 import {
@@ -24,6 +25,7 @@ interface CumulativeSavingsChartProps {
 }
 
 export function CumulativeSavingsChart({ expanded = false }: CumulativeSavingsChartProps) {
+    const { formatCurrency } = useSettings();
     const { data: history = [], isLoading } = useQuery({
         queryKey: ["statsHistory"],
         queryFn: async () => {
@@ -60,13 +62,13 @@ export function CumulativeSavingsChart({ expanded = false }: CumulativeSavingsCh
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={expanded ? 12 : 10} />
                 {expanded && (
-                    <YAxis tickFormatter={(v) => `$${v.toLocaleString()}`} tickLine={false} axisLine={false} fontSize={12} />
+                    <YAxis tickFormatter={(v) => formatCurrency(v)} tickLine={false} axisLine={false} fontSize={12} />
                 )}
                 <ChartTooltip
                     cursor={false}
                     content={
                         <ChartTooltipContent
-                            formatter={(value) => `$${Number(value).toLocaleString()}`}
+                            formatter={(value) => formatCurrency(Number(value))}
                             indicator="line"
                         />
                     }
