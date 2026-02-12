@@ -5,6 +5,8 @@ import { useTheme } from "@/components/ThemeProvider";
 import Index from '@/pages/Index';
 import Flow from '@/pages/Flow';
 import Transactions from '@/pages/Transactions';
+import Reports from '@/pages/Reports';
+import Settings from '@/pages/Settings';
 import NotFound from './pages/NotFount';
 
 function ThemedToaster() {
@@ -22,6 +24,8 @@ function App() {
           <Route path="/" element={<Index />} />
           <Route path="/flow" element={<Flow />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </HashRouter>

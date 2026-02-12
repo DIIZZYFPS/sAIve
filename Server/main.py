@@ -174,6 +174,116 @@ def get_sankey_data(user_id: int, year: Optional[int] = None, month: Optional[in
 
     return {"nodes": nodes, "links": links}
 
+@app.get("/stats/history/{user_id}")
+def get_stats_history(user_id: int):
+    """Returns monthly financial summary for up to the last 12 months."""
+    assets = crud.get_all_user_assets(user_id)
+    if not assets:
+        return []
+    
+    # Sort by year then month
+    sorted_assets = sorted(assets, key=lambda a: (a.year, a.month))
+    
+    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    
+    result = []
+    for a in sorted_assets[-12:]:
+        savings_rate = (a.TSavings / a.TIncome * 100) if a.TIncome > 0 else 0
+        result.append({
+            "month": month_names[a.month],
+            "year": a.year,
+            "income": a.TIncome,
+            "expense": a.TExpense,
+            "savings": a.TSavings,
+            "net_worth": a.net_worth,
+            "savings_rate": round(savings_rate, 1),
+        })
+    
+    return result
+
+@app.get("/stats/categories/{user_id}")
+def get_stats_categories(user_id: int, year: Optional[int] = None, month: Optional[int] = None):
+    """Returns expense breakdown by category for a specific month."""
+    current_date = datetime.now()
+    target_year = year if year is not None else current_date.year
+    target_month = month if month is not None else current_date.month
+    
+    txns = crud.get_transactions_by_month(user_id, target_year, target_month)
+    
+    categories = defaultdict(float)
+    for t in txns:
+        if t.type == "expense":
+            categories[t.category] += t.amount
+    
+    total = sum(categories.values())
+    result = []
+    for cat, amount in categories.items():
+        pct = (amount / total * 100) if total > 0 else 0
+        result.append({
+            "category": cat,
+            "amount": round(amount, 2),
+            "percentage": round(pct, 1),
+            "fill": "#f43f5e",  # default, frontend can override
+        })
+    
+    # Sort by amount descending
+    result.sort(key=lambda x: x["amount"], reverse=True)
+    return result
+
+@app.get("/stats/category-history/{user_id}")
+def get_category_history(user_id: int, categories: str = "Housing,Food,Transport"):
+    """Returns monthly expense totals for specific categories over last 12 months."""
+    target_cats = [c.strip() for c in categories.split(",")]
+    assets = crud.get_all_user_assets(user_id)
+    if not assets:
+        return []
+    
+    sorted_assets = sorted(assets, key=lambda a: (a.year, a.month))
+    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    
+    result = []
+    for a in sorted_assets[-12:]:
+        txns = crud.get_transactions_by_month(user_id, a.year, a.month)
+        entry = {
+            "month": month_names[a.month],
+            "year": a.year,
+            "label": f"{month_names[a.month]} {a.year}",
+        }
+        for cat in target_cats:
+            entry[cat] = sum(t.amount for t in txns if t.type == "expense" and t.category == cat)
+        result.append(entry)
+    
+    return result
+
+@app.get("/stats/daily-spending/{user_id}")
+def get_daily_spending(user_id: int, year: Optional[int] = None, month: Optional[int] = None):
+    """Returns daily expense totals for heatmap visualization."""
+    current_date = datetime.now()
+    target_year = year if year is not None else current_date.year
+    target_month = month if month is not None else current_date.month
+    
+    txns = crud.get_transactions_by_month(user_id, target_year, target_month)
+    
+    daily = defaultdict(float)
+    for t in txns:
+        if t.type == "expense":
+            day = t.date.day if hasattr(t.date, 'day') else int(str(t.date).split('-')[2])
+            daily[day] += t.amount
+    
+    # Build full month calendar
+    import calendar
+    days_in_month = calendar.monthrange(target_year, target_month)[1]
+    result = []
+    for d in range(1, days_in_month + 1):
+        result.append({
+            "day": d,
+            "amount": round(daily.get(d, 0), 2),
+            "weekday": calendar.weekday(target_year, target_month, d),  # 0=Mon, 6=Sun
+        })
+    
+    return result
 
 
 # Non endpoint functions

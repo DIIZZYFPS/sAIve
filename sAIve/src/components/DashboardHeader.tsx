@@ -1,12 +1,15 @@
 import { Button } from '@/components/ui/button';
-import { 
+import {
   Bell,
-  User,
   Plus,
-  CalendarIcon
+  CalendarIcon,
+  Repeat,
+  TrendingUp,
+  TrendingDown,
+  Wallet
 } from 'lucide-react';
 import { toast } from 'sonner';
-import {ModeToggle} from '@/components/ModeToggle';
+import { ModeToggle } from '@/components/ModeToggle';
 import {
   Drawer,
   DrawerContent,
@@ -16,6 +19,14 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
+import {
   Form,
   FormField,
   FormControl,
@@ -23,7 +34,7 @@ import {
   FormLabel,
   FormMessage
 } from "@/components/ui/form"
-import { 
+import {
   Card,
   CardContent
 } from "@/components/ui/card"
@@ -52,25 +63,91 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 import api from '@/lib/api';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 
 
-  const formSchema = z.object({
-    title: z.string().min(1, "Title is required"),
-    amount: z.number().min(0, "Amount must be a positive number"),
-    date: z.date(),
-    category: z.enum(["Food", "Transportation", "Subscriptions","Bills","Housing", "Other", "Income"], {
-      errorMap: () => ({ message: "Category is required" }),
-    }),
-    type: z.enum(["income", "expense"], {
-      errorMap: () => ({ message: "Type is required" }),
-    }),
-  });
+const formSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  amount: z.number().min(0, "Amount must be a positive number"),
+  date: z.date(),
+  category: z.enum(["Food", "Transportation", "Subscriptions", "Bills", "Housing", "Other", "Income"], {
+    errorMap: () => ({ message: "Category is required" }),
+  }),
+  type: z.enum(["income", "expense"], {
+    errorMap: () => ({ message: "Type is required" }),
+  }),
+});
 
 function DashboardHeader({ pageName }: { pageName: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  // Profile dropdown data
+  const { data: userProfile } = useQuery({
+    queryKey: ["userProfile"],
+    queryFn: async () => {
+      const response = await api.get("/users/1");
+      return response.data;
+    },
+  });
+
+  const { data: currentAsset } = useQuery({
+    queryKey: ["asset"],
+    queryFn: async () => {
+      const response = await api.get("/user_asset/1");
+      return response.data;
+    },
+  });
+
+  const { data: allTransactions } = useQuery({
+    queryKey: ["transactions"],
+    queryFn: async () => {
+      const response = await api.get("/transactions/");
+      return response.data;
+    },
+  });
+
+  const userName = userProfile?.name || "User";
+  const userInitial = userName.charAt(0).toUpperCase();
+  const asset = currentAsset?.asset;
+  const income = asset?.TIncome ?? 0;
+  const expense = asset?.TExpense ?? 0;
+  const savings = asset?.TSavings ?? 0;
+  const savingsRate = income > 0 ? (savings / income) * 100 : 0;
+
+  const healthBadge = savingsRate >= 20
+    ? { label: "On Track", color: "bg-emerald-500/20 text-emerald-400", dot: "bg-emerald-400" }
+    : savingsRate >= 5
+      ? { label: "Watch It", color: "bg-yellow-500/20 text-yellow-400", dot: "bg-yellow-400" }
+      : { label: "Over Budget", color: "bg-red-500/20 text-red-400", dot: "bg-red-400" };
+
+  const lastTransaction = allTransactions?.length > 0 ? allTransactions[allTransactions.length - 1] : null;
+
+  const handleRepeatTransaction = () => {
+    if (!lastTransaction) return;
+    const payload = {
+      user_id: lastTransaction.user_id,
+      recipient: lastTransaction.recipient,
+      date: new Date().toISOString().slice(0, 10),
+      amount: lastTransaction.amount,
+      category: lastTransaction.category,
+      type: lastTransaction.type,
+    };
+    toast.promise(
+      api.post("/transactions/", payload).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["asset"] });
+        queryClient.invalidateQueries({ queryKey: ["assets"] });
+        queryClient.invalidateQueries({ queryKey: ["categories"] });
+      }),
+      {
+        loading: "Repeating transaction...",
+        success: `Repeated: $${lastTransaction.amount} → ${lastTransaction.recipient}`,
+        error: "Failed to repeat transaction",
+      }
+    );
+  };
   const handleAddTransaction = (values: any) => {
     const payload = {
       user_id: 1,
@@ -80,7 +157,7 @@ function DashboardHeader({ pageName }: { pageName: string }) {
       category: values.category,
       type: values.type,
     };
-    
+
     // Call the API to add the transaction
     toast.promise(
       api.post("/transactions/", payload).then(() => {
@@ -116,7 +193,7 @@ function DashboardHeader({ pageName }: { pageName: string }) {
     },
   });
 
-  
+
 
   return (
     <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between py-4 px-6 animate-fade-in">
@@ -124,21 +201,79 @@ function DashboardHeader({ pageName }: { pageName: string }) {
         <h1 className="text-2xl md:text-3xl font-bold capitalize">{pageName === '/' ? 'Dashboard Overview' : pageName}</h1>
         <p className="text-muted-foreground">{pageName === '/' ? `Welcome back! Here's your financial summary` : null}</p>
       </div>
-      
+
       <div className="flex items-center space-x-3">
         <div className="relative hidden md:flex items-center">
-          <ModeToggle/>
+          <ModeToggle />
         </div>
-        
+
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
         </Button>
-        
-        <Button variant="ghost" size="icon">
-          <User className="h-5 w-5" />
-        </Button>
-        <Drawer open={isOpen} onOpenChange={setIsOpen} shouldScaleBackground={true}> 
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
+                {userInitial}
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64 p-0">
+            {/* Header */}
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-lg font-bold text-primary">
+                  {userInitial}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Hey, {userName}</p>
+                  <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full ${healthBadge.color}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${healthBadge.dot}`} />
+                    {healthBadge.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <DropdownMenuSeparator />
+
+            {/* This Month Stats */}
+            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal px-4 py-1">This Month</DropdownMenuLabel>
+            <div className="px-4 py-2 space-y-1.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground"><TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Income</span>
+                <span className="font-medium text-emerald-400">${income.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground"><TrendingDown className="h-3.5 w-3.5 text-rose-400" /> Expenses</span>
+                <span className="font-medium text-rose-400">${expense.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground"><Wallet className="h-3.5 w-3.5 text-blue-400" /> Savings</span>
+                <span className="font-medium text-blue-400">${savings.toLocaleString()}</span>
+              </div>
+            </div>
+            <DropdownMenuSeparator />
+
+            {/* Quick Repeat */}
+            {lastTransaction && (
+              <DropdownMenuItem
+                onClick={handleRepeatTransaction}
+                className="px-4 py-2.5 cursor-pointer"
+              >
+                <Repeat className="h-4 w-4 mr-2" />
+                <div className="flex flex-col">
+                  <span className="text-sm">Repeat Last Transaction</span>
+                  <span className="text-xs text-muted-foreground">
+                    ${lastTransaction.amount} → {lastTransaction.recipient}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Drawer open={isOpen} onOpenChange={setIsOpen} shouldScaleBackground={true}>
           <DrawerTrigger >
             <Button variant="ghost" className="bg-primary">
               <Plus className="mr-1 h-4 w-4" />
@@ -148,168 +283,168 @@ function DashboardHeader({ pageName }: { pageName: string }) {
           <DrawerContent className='items-center'>
             <DrawerHeader>
               <DrawerTitle className='text-center mb-7'>Add Transaction</DrawerTitle>
-              <Separator className='mb-4'/>
+              <Separator className='mb-4' />
 
               <Card className="glass-card border-border/50 w-full mb-5 ">
                 <CardContent className="pt-4">
-                <Form {... form}>
-                   <form onSubmit={form.handleSubmit(handleAddTransaction)} className="space-y-8 w-full grid grid-cols-4 gap-4">
-                    <div className='col-span-2'>
-                     <FormField
-                       control={form.control}
-                       name="title"
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Transaction Title</FormLabel>
-                           <FormControl>
-                             <input
-                               {...field}
-                               type="text"
-                               placeholder="Enter transaction title"
-                               className="input"
-                             />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                      />
-                      <Separator className='my-4'/>
-                      </div>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleAddTransaction)} className="space-y-8 w-full grid grid-cols-4 gap-4">
                       <div className='col-span-2'>
-                      <FormField
-                        control={form.control}
-                        name="amount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Transaction Amount</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">$</span>
+                        <FormField
+                          control={form.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Transaction Title</FormLabel>
+                              <FormControl>
                                 <input
                                   {...field}
-                                  type="number"
-                                  placeholder="Enter the amount for the transaction."
-                                  className="input pl-6" // add left padding to make space for the dollar sign
-                                  value={field.value}
-                                  onChange={e => field.onChange(e.target.valueAsNumber)}
+                                  type="text"
+                                  placeholder="Enter transaction title"
+                                  className="input"
                                 />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Separator className='my-4'/>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Separator className='my-4' />
                       </div>
-                        <div className='col-span-2'>
-                          <FormField
-                                control={form.control}
-                                name="date"
-                                render={({ field }) => (
-                                  <FormItem className="flex flex-col">
-                                    <FormLabel>Date of Transaction</FormLabel>
-                                    <Popover modal={true}>
-                                      <PopoverTrigger asChild>
-                                        <FormControl>
-                                          <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                              "w-[240px] pl-3 text-left font-normal",
-                                              !field.value && "text-muted-foreground"
-                                            )}
-                                          >
-                                            {field.value ? (
-                                              format(field.value, "PPP")
-                                            ) : (
-                                              <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                          </Button>
-                                        </FormControl>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0" align="center" side='left'>
-                                        <Calendar
-                                          mode="single"
-                                          selected={field.value}
-                                          onSelect={field.onChange}
-                                          disabled={(date) =>
-                                            date > new Date() || date < new Date("1900-01-01")
-                                          }
-                                          initialFocus
-                                        />
-                                      </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <Separator className='my-4'/>
-                        </div>
-                        <div>
-                          <FormField
-                            control={form.control}
-                            name="type"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Transaction Type</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                      <FormControl>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select a transaction type" />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        <SelectItem value="income">Income</SelectItem>
-                                        <SelectItem value="expense">Expense</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                              </FormItem>
-                            )}
-                          />
-                          <Separator className='my-4'/>
-                        </div>
-                        <div>
-                          <FormField
-                            control={form.control}
-                            name="category"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Transaction Category</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} >
-                                      <FormControl>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select a Category" />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent side='right'>
-                                        <SelectItem value="Income">Income</SelectItem>
-                                        <SelectItem value="Housing">Housing</SelectItem>
-                                        <SelectItem value="Food">Food</SelectItem>
-                                        <SelectItem value="Transportation">Transportation</SelectItem>
-                                        <SelectItem value="Subscriptions">Subscriptions</SelectItem>
-                                        <SelectItem value="Bills">Bills</SelectItem>
-                                        <SelectItem value="Other">Other</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <Separator className='my-4'/>
-                        </div>
-                    <Button
-                    type="submit"
-                    className="col-start-2 col-span-2 bg-primary hover:bg-primary/80 text-white">
-                    Add Transaction
-                    </Button>
-                  </form>
+                      <div className='col-span-2'>
+                        <FormField
+                          control={form.control}
+                          name="amount"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Transaction Amount</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">$</span>
+                                  <input
+                                    {...field}
+                                    type="number"
+                                    placeholder="Enter the amount for the transaction."
+                                    className="input pl-6" // add left padding to make space for the dollar sign
+                                    value={field.value}
+                                    onChange={e => field.onChange(e.target.valueAsNumber)}
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Separator className='my-4' />
+                      </div>
+                      <div className='col-span-2'>
+                        <FormField
+                          control={form.control}
+                          name="date"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Date of Transaction</FormLabel>
+                              <Popover modal={true}>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "w-[240px] pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, "PPP")
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="center" side='left'>
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    disabled={(date) =>
+                                      date > new Date() || date < new Date("1900-01-01")
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Separator className='my-4' />
+                      </div>
+                      <div>
+                        <FormField
+                          control={form.control}
+                          name="type"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Transaction Type</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a transaction type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="income">Income</SelectItem>
+                                  <SelectItem value="expense">Expense</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
+                        <Separator className='my-4' />
+                      </div>
+                      <div>
+                        <FormField
+                          control={form.control}
+                          name="category"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Transaction Category</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value} >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a Category" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent side='right'>
+                                  <SelectItem value="Income">Income</SelectItem>
+                                  <SelectItem value="Housing">Housing</SelectItem>
+                                  <SelectItem value="Food">Food</SelectItem>
+                                  <SelectItem value="Transportation">Transportation</SelectItem>
+                                  <SelectItem value="Subscriptions">Subscriptions</SelectItem>
+                                  <SelectItem value="Bills">Bills</SelectItem>
+                                  <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Separator className='my-4' />
+                      </div>
+                      <Button
+                        type="submit"
+                        className="col-start-2 col-span-2 bg-primary hover:bg-primary/80 text-white">
+                        Add Transaction
+                      </Button>
+                    </form>
 
-                </Form>
-              </CardContent>
-            </Card>
+                  </Form>
+                </CardContent>
+              </Card>
             </DrawerHeader>
             <DrawerFooter>
-              
+
             </DrawerFooter>
           </DrawerContent>
         </Drawer>
