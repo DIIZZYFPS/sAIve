@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import App from './App';
 import AppLoader from './components/appLoader';
+import { useAi } from '@/context/AiContext';
+import { useSettings } from '@/context/SettingsContext';
 
 // The function to fetch transactions, which will be used by the query
 const fetchTransactions = async () => {
@@ -13,6 +15,8 @@ const fetchTransactions = async () => {
 const AppShell: React.FC = () => {
   const [isAppLoading, setIsAppLoading] = useState(true);
   const queryClient = useQueryClient();
+  const { loadModel } = useAi();
+  const { aiEnabled } = useSettings();
 
   useEffect(() => {
     const minDisplayTime = 2000; // Minimum 2 seconds loader time
@@ -25,7 +29,12 @@ const AppShell: React.FC = () => {
       queryFn: fetchTransactions,
     });
 
-    Promise.all([timerPromise, dataPromise])
+    // Load AI model in parallel if enabled (don't block on failure)
+    const aiPromise = aiEnabled
+      ? loadModel().catch(err => console.warn("AI model load deferred:", err))
+      : Promise.resolve();
+
+    Promise.all([timerPromise, dataPromise, aiPromise])
       .catch(error => {
         console.error("Failed to pre-fetch initial data:", error);
       })
