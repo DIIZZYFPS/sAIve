@@ -59,12 +59,13 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 import api from '@/lib/api';
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useSettings } from "@/context/SettingsContext";
+import { useAi } from "@/context/AiContext";
 
 
 
@@ -83,7 +84,12 @@ const formSchema = z.object({
 function DashboardHeader({ pageName }: { pageName: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { formatCurrency, currencySymbol } = useSettings();
+  const { formatCurrency, currencySymbol, aiEnabled } = useSettings();
+  const { isModelLoaded, suggestCategory } = useAi();
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestingRef = useRef(false);
+  const lastSuggestedRef = useRef("");
 
   // Profile dropdown data
   const { data: userProfile } = useQuery({
@@ -194,6 +200,43 @@ function DashboardHeader({ pageName }: { pageName: string }) {
       type: "income",
     },
   });
+
+  // Watch title field and auto-suggest category via AI
+  const titleValue = form.watch("title");
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!titleValue || titleValue.length < 3 || !isModelLoaded || !aiEnabled) {
+      return;
+    }
+
+    // Skip if we already suggested for this exact title
+    if (lastSuggestedRef.current === titleValue) return;
+
+    debounceRef.current = setTimeout(async () => {
+      // Guard against concurrent calls
+      if (suggestingRef.current) return;
+      suggestingRef.current = true;
+      setIsSuggesting(true);
+
+      try {
+        const result = await suggestCategory(titleValue);
+        lastSuggestedRef.current = titleValue;
+        if (result) {
+          form.setValue("category", result as any);
+          toast(`✨ AI set category to ${result}`, { duration: 2000 });
+        }
+      } finally {
+        suggestingRef.current = false;
+        setIsSuggesting(false);
+      }
+    }, 800);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [titleValue, isModelLoaded, suggestCategory, form]);
 
 
 
@@ -411,8 +454,8 @@ function DashboardHeader({ pageName }: { pageName: string }) {
                           name="category"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Transaction Category</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value} >
+                              <FormLabel>Transaction Category {isSuggesting && <span className="text-[10px] text-muted-foreground ml-1 animate-pulse">✨ AI thinking...</span>}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value} >
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a Category" />

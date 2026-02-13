@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/components/ThemeProvider";
-import { useSettings, CURRENCIES, type CurrencyCode } from "@/context/SettingsContext";
+import { useSettings, CURRENCIES, AI_MODELS, type CurrencyCode, type AiModelId } from "@/context/SettingsContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import { Sun, Moon, Monitor, User, Download, Save, Coins, Bot } from "lucide-rea
 
 const Settings = () => {
     const { theme, setTheme } = useTheme();
-    const { currency, setCurrency, aiEnabled, setAiEnabled, formatCurrency } = useSettings();
+    const { currency, setCurrency, aiEnabled, setAiEnabled, aiModel, setAiModel, formatCurrency } = useSettings();
     const queryClient = useQueryClient();
 
     // Fetch user profile
@@ -171,6 +171,47 @@ const Settings = () => {
                                         />
                                     </button>
                                 </div>
+
+                                {aiEnabled && (
+                                    <>
+                                        <Separator />
+                                        <div>
+                                            <p className="text-sm font-medium mb-1">AI Model</p>
+                                            <p className="text-xs text-muted-foreground mb-3">
+                                                Choose the AI model to power your features. Changing requires a restart.
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {AI_MODELS.map((m) => (
+                                                    <button
+                                                        key={m.id}
+                                                        onClick={() => {
+                                                            if (m.id !== aiModel) {
+                                                                setAiModel(m.id as AiModelId);
+                                                                toast.info(`Switched to ${m.label}. Restart to load the new model.`);
+                                                            }
+                                                        }}
+                                                        className={`flex flex-col items-start gap-1 p-4 rounded-lg border-2 transition-all cursor-pointer text-left ${aiModel === m.id
+                                                            ? "border-primary bg-primary/10"
+                                                            : "border-border hover:border-primary/40 hover:bg-muted/50"
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-bold">{m.label}</span>
+                                                            {m.recommended && (
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
+                                                                    Recommended
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-xs text-muted-foreground">{m.description}</span>
+                                                        <span className="text-[10px] text-muted-foreground/70 mt-1">Download: {m.size}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
                                 <p className="text-xs text-muted-foreground italic">
                                     {aiEnabled
                                         ? "AI features are enabled. Smart insights will appear across the app."
@@ -250,7 +291,7 @@ const Settings = () => {
                             <CardContent className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">Version</span>
-                                    <span className="text-sm font-mono">0.1.1</span>
+                                    <span className="text-sm font-mono">0.2.0</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">App</span>

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import AiChat from '@/components/AiChat';
+import { useSettings } from '@/context/SettingsContext';
 import {
   ChevronLeft,
   LayoutDashboard,
@@ -46,6 +47,7 @@ const SidebarItem = ({ icon: Icon, label, to, active, onClick }: SidebarItemProp
 
 const Sidebar = () => {
   const location = useLocation();
+  const { aiEnabled } = useSettings();
   const [collapsed, setCollapsed] = useState(() => {
     // Get initial state from localStorage or default to false
     const stored = localStorage.getItem('sidebar-collapsed');
@@ -110,18 +112,20 @@ const Sidebar = () => {
               to='/reports'
               active={location.pathname === '/reports'}
             />
-            <AiChat trigger={
-              <Button
-                variant="ghost"
-                className={cn(
-                  'w-full justify-start gap-2 px-3 h-12',
-                  'text-sidebar-foreground hover:bg-sidebar-accent/50'
-                )}
-              >
-                <Bot size={20} />
-                <span>AI Assistant</span>
-              </Button>
-            } />
+            {aiEnabled && (
+              <AiChat trigger={
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    'w-full justify-start gap-2 px-3 h-12',
+                    'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                  )}
+                >
+                  <Bot size={20} />
+                  <span>AI Assistant</span>
+                </Button>
+              } />
+            )}
 
             <div className="text-xs text-sidebar-foreground/70 mb-1 ml-3 mt-4">Planning</div>
             <SidebarItem
@@ -160,11 +164,13 @@ const Sidebar = () => {
             <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/reports' ? 'bg-sidebar-accent text-primary' : '')}>
               <Link to="/reports"><BarChart3 size={20} /></Link>
             </Button>
-            <AiChat trigger={
-              <Button variant="ghost" size="icon" className="w-full justify-center h-12 text-sidebar-foreground hover:bg-sidebar-accent/50">
-                <Bot size={20} />
-              </Button>
-            } />
+            {aiEnabled && (
+              <AiChat trigger={
+                <Button variant="ghost" size="icon" className="w-full justify-center h-12 text-sidebar-foreground hover:bg-sidebar-accent/50">
+                  <Bot size={20} />
+                </Button>
+              } />
+            )}
             <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/calendar' ? 'bg-sidebar-accent text-primary' : '')}>
               <Link to="/calendar"><Calendar size={20} /></Link>
             </Button>

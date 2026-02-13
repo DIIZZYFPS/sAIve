@@ -1,7 +1,7 @@
 {
   "name": "saive",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "An AI-powered budgeting application.",
   "author": "DIIZZY",
   "type": "module",
@@ -37,6 +37,7 @@
     "react-day-picker": "^8.10.1",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.56.4",
+    "react-markdown": "^10.1.0",
     "react-router": "^7.6.0",
     "react-router-dom": "^7.6.0",
     "react-spinners": "^0.17.0",
