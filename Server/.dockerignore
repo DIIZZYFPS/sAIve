@@ -4,4 +4,4 @@ __pycache__
 .git
 .gitignore
 Dockerfile
-README.md
+*.db

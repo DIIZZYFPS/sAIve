@@ -129,11 +129,13 @@ To build the Electron application for production:
 From the `Server` directory:
 
 ```bash
+cd Server
+mkdir -p data
 docker build -t saive-backend .
-docker run --rm -p 8000:8000 saive-backend
+docker run --rm -p 8000:8000 -v $(pwd)/data:/app/data saive-backend
 ```
-The API will be available at http://localhost:8000
-
+The API will be available at `http://localhost:8000`
+Note: SQLite DB persists in `./data/database.db`
 
 ## 💡 Future Features / Projected Ideas
 
