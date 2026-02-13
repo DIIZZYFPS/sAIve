@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {Link, useLocation} from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import AiChat from '@/components/AiChat';
 import {
   ChevronLeft,
   LayoutDashboard,
@@ -10,7 +11,8 @@ import {
   Settings,
   PiggyBank,
   Calendar,
-  Users
+  Users,
+  Bot
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -38,7 +40,7 @@ const SidebarItem = ({ icon: Icon, label, to, active, onClick }: SidebarItemProp
         <span>{label}</span>
       </Link>
     </Button>
-    
+
   );
 };
 
@@ -84,51 +86,63 @@ const Sidebar = () => {
         {!collapsed ? (
           <>
             <div className="text-xs text-sidebar-foreground/70 mb-1 ml-3 mt-2">Overview</div>
-            <SidebarItem 
-            icon={LayoutDashboard} 
-            label="Dashboard" 
-            to='/' 
-            active={location.pathname === '/'} 
+            <SidebarItem
+              icon={LayoutDashboard}
+              label="Dashboard"
+              to='/'
+              active={location.pathname === '/'}
             />
-            <SidebarItem 
-              icon={CreditCard} 
-              label="Transactions" 
-              to='/transactions' 
-              active={location.pathname === '/transactions'} 
+            <SidebarItem
+              icon={CreditCard}
+              label="Transactions"
+              to='/transactions'
+              active={location.pathname === '/transactions'}
             />
-            <SidebarItem 
-              icon={PiggyBank} 
-              label="Flow" 
-              to='/flow' 
-              active={location.pathname === '/flow'} 
+            <SidebarItem
+              icon={PiggyBank}
+              label="Flow"
+              to='/flow'
+              active={location.pathname === '/flow'}
             />
-            <SidebarItem 
-              icon={BarChart3} 
-              label="Reports" 
-              to='/reports' 
-              active={location.pathname === '/reports'} 
+            <SidebarItem
+              icon={BarChart3}
+              label="Reports"
+              to='/reports'
+              active={location.pathname === '/reports'}
             />
+            <AiChat trigger={
+              <Button
+                variant="ghost"
+                className={cn(
+                  'w-full justify-start gap-2 px-3 h-12',
+                  'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                )}
+              >
+                <Bot size={20} />
+                <span>AI Assistant</span>
+              </Button>
+            } />
 
             <div className="text-xs text-sidebar-foreground/70 mb-1 ml-3 mt-4">Planning</div>
-            <SidebarItem 
-              icon={Calendar} 
-              label="Calendar" 
-              to='/calendar' 
-              active={location.pathname === '/calendar'} 
+            <SidebarItem
+              icon={Calendar}
+              label="Calendar"
+              to='/calendar'
+              active={location.pathname === '/calendar'}
             />
-            <SidebarItem 
-              icon={Users} 
-              label="Shared" 
-              to='/shared' 
-              active={location.pathname === '/shared'} 
+            <SidebarItem
+              icon={Users}
+              label="Shared"
+              to='/shared'
+              active={location.pathname === '/shared'}
             />
 
             <div className="mt-auto">
-              <SidebarItem 
-                icon={Settings} 
-                label="Settings" 
-                to='/settings' 
-                active={location.pathname === '/settings'} 
+              <SidebarItem
+                icon={Settings}
+                label="Settings"
+                to='/settings'
+                active={location.pathname === '/settings'}
               />
             </div>
           </>
@@ -146,13 +160,18 @@ const Sidebar = () => {
             <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/reports' ? 'bg-sidebar-accent text-primary' : '')}>
               <Link to="/reports"><BarChart3 size={20} /></Link>
             </Button>
+            <AiChat trigger={
+              <Button variant="ghost" size="icon" className="w-full justify-center h-12 text-sidebar-foreground hover:bg-sidebar-accent/50">
+                <Bot size={20} />
+              </Button>
+            } />
             <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/calendar' ? 'bg-sidebar-accent text-primary' : '')}>
               <Link to="/calendar"><Calendar size={20} /></Link>
             </Button>
             <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/shared' ? 'bg-sidebar-accent text-primary' : '')}>
               <Link to="/shared"><Users size={20} /></Link>
             </Button>
-            
+
             <div className="mt-auto">
               <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/settings' ? 'bg-sidebar-accent text-primary' : '')}>
                 <Link to="/settings"><Settings size={20} /></Link>
