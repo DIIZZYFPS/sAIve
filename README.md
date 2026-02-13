@@ -124,6 +124,17 @@ To build the Electron application for production:
 
 ---
 
+### Backend: Run with Docker
+
+From the `Server` directory:
+
+```bash
+docker build -t saive-backend .
+docker run --rm -p 8000:8000 saive-backend
+```
+The API will be available at http://localhost:8000
+
+
 ## 💡 Future Features / Projected Ideas
 
 This section outlines potential enhancements and future directions for sAIve:
