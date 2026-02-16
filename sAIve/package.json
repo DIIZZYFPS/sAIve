@@ -1,7 +1,7 @@
 {
   "name": "saive",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An AI-powered budgeting application.",
   "author": "DIIZZY",
   "type": "module",
@@ -85,10 +85,10 @@
     ],
     "extraResources": [
       {
-        "from": "../Server",
-        "to": "app/Server",
+        "from": "../Server/dist/",
+        "to": "backend",
         "filter": [
-          "**/*"
+          "sAIve-backend*"
         ]
       }
     ],

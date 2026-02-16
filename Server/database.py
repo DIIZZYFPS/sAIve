@@ -1,7 +1,13 @@
 import sqlite3
+import sys
 from pathlib import Path
 
-DATABASE_PATH = Path(__file__).parent.resolve() / "database.db"
+if getattr(sys, 'frozen', False):
+    # Running as a PyInstaller bundle — put DB next to the executable
+    DATABASE_PATH = Path(sys.executable).parent / "database.db"
+else:
+    # Running in development
+    DATABASE_PATH = Path(__file__).parent.resolve() / "database.db"
 
 def create_connection():
     conn = sqlite3.connect(DATABASE_PATH)

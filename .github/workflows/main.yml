@@ -19,26 +19,28 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies & PyInstaller
+        run: |
+          pip install -r Server/requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend binary
+        run: pyinstaller sAIve-backend.spec --distpath dist
+        working-directory: Server
+
       - name: Install Node.js dependencies
         run: npm install
         working-directory: sAIve
-
-      - name: Set up portable Python
-        run: |
-          curl -L -o python.tar.gz https://github.com/astral-sh/python-build-standalone/releases/download/20250610/cpython-3.11.13+20250610-x86_64-apple-darwin-install_only.tar.gz
-          tar -xzf python.tar.gz -C Server/
-          mv Server/python Server/venv
-
-      - name: Install Python dependencies
-        run: |
-          Server/venv/bin/python3 -m pip install --upgrade pip
-          Server/venv/bin/python3 -m pip install -r Server/requirements.txt
 
       - name: Build macOS application
         run: npm run electron:build
         working-directory: sAIve
         env:
-          # This is important for macOS notarization if you set it up
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -61,21 +63,23 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies & PyInstaller
+        run: |
+          pip install -r Server/requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend binary
+        run: pyinstaller sAIve-backend.spec --distpath dist
+        working-directory: Server
+
       - name: Install Node.js dependencies
         run: npm install
         working-directory: sAIve
-
-      - name: Set up portable Python
-        shell: powershell
-        run: |
-          Invoke-WebRequest -Uri https://github.com/astral-sh/python-build-standalone/releases/download/20250610/cpython-3.11.13+20250610-x86_64-pc-windows-msvc-install_only.tar.gz -OutFile python.tar.gz
-          tar -xzf python.tar.gz -C Server/
-          Move-Item -Path Server/python -Destination Server/venv
-
-      - name: Install Python dependencies
-        run: |
-          Server/venv/python.exe -m pip install --upgrade pip
-          Server/venv/python.exe -m pip install -r Server/requirements.txt
 
       - name: Build Windows application
         run: npm run electron:build

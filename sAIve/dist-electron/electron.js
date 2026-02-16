@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, net } from "electron";
+import { app, ipcMain, dialog, BrowserWindow, net } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
@@ -24,6 +24,7 @@ const error = (message) => {
 console.log = log;
 console.error = error;
 let pythonProcess = null;
+let backendPort = null;
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -45,44 +46,70 @@ function createWindow() {
     mainWindow.loadURL(devUrl);
   }
 }
+ipcMain.handle("get-backend-port", () => backendPort);
 const startBackend = () => {
-  const serverPath = app.isPackaged ? path.join(process.resourcesPath, "app", "Server") : path.join(__dirname, "..", "..", "Server");
-  const pythonExecutable = app.isPackaged ? process.platform === "win32" ? path.join(serverPath, "venv", "python.exe") : path.join(serverPath, "venv", "bin", "python") : "python";
-  console.log(`Attempting to start backend with: ${pythonExecutable}`);
-  if (app.isPackaged && !fs.existsSync(pythonExecutable)) {
-    const errorMessage = `Packaged Python executable not found at: ${pythonExecutable}`;
-    console.error(errorMessage);
-    dialog.showErrorBox("Backend Error", errorMessage);
-    app.quit();
-    return;
-  }
-  pythonProcess = spawn(pythonExecutable, [
-    "-m",
-    "uvicorn",
-    "main:app",
-    "--host",
-    "127.0.0.1",
-    "--port",
-    "8000"
-  ], {
-    cwd: serverPath,
-    stdio: "pipe"
-  });
-  pythonProcess.stdout.on("data", (data) => {
-    console.log(`Backend: ${data}`);
-  });
-  pythonProcess.stderr.on("data", (data) => {
-    console.error(`Backend Error: ${data}`);
-  });
-  pythonProcess.on("error", (err) => {
-    console.error(`Failed to start backend process: ${err}`);
-    dialog.showErrorBox("Backend Error", `Failed to start backend process: ${err.message}`);
-    app.quit();
-  });
-  pythonProcess.on("close", (code) => {
-    if (code !== 0) {
-      console.error(`Backend process exited with code ${code}`);
+  return new Promise((resolve, reject) => {
+    let executable;
+    let args;
+    let cwd;
+    if (app.isPackaged) {
+      const binaryName = process.platform === "win32" ? "sAIve-backend.exe" : "sAIve-backend";
+      executable = path.join(process.resourcesPath, "backend", binaryName);
+      args = [];
+      cwd = path.join(process.resourcesPath, "backend");
+      if (!fs.existsSync(executable)) {
+        const errorMessage = `Backend binary not found at: ${executable}`;
+        console.error(errorMessage);
+        dialog.showErrorBox("Backend Error", errorMessage);
+        reject(new Error(errorMessage));
+        return;
+      }
+    } else {
+      executable = "python";
+      args = ["main.py"];
+      cwd = path.join(__dirname, "..", "..", "Server");
     }
+    console.log(`Starting backend: ${executable} ${args.join(" ")} in ${cwd}`);
+    pythonProcess = spawn(executable, args, {
+      cwd,
+      stdio: "pipe"
+    });
+    let portFound = false;
+    pythonProcess.stdout.on("data", (data) => {
+      const output = data.toString();
+      console.log(`Backend: ${output}`);
+      if (!portFound) {
+        const match = output.match(/PORT:(\d+)/);
+        if (match) {
+          backendPort = parseInt(match[1], 10);
+          portFound = true;
+          console.log(`Backend port discovered: ${backendPort}`);
+          resolve(backendPort);
+        }
+      }
+    });
+    pythonProcess.stderr.on("data", (data) => {
+      console.error(`Backend: ${data}`);
+    });
+    pythonProcess.on("error", (err) => {
+      console.error(`Failed to start backend process: ${err}`);
+      dialog.showErrorBox("Backend Error", `Failed to start backend process: ${err.message}`);
+      reject(err);
+    });
+    pythonProcess.on("close", (code) => {
+      if (code !== 0) {
+        console.error(`Backend process exited with code ${code}`);
+      }
+      if (!portFound) {
+        reject(new Error(`Backend exited with code ${code} before reporting a port.`));
+      }
+    });
+    setTimeout(() => {
+      if (!portFound) {
+        console.error("Backend did not report a port within 30 seconds.");
+        reject(new Error("Backend startup timeout."));
+      }
+    }, 3e4);
   });
 };
 const checkBackendReady = (callback) => {
@@ -90,9 +117,8 @@ const checkBackendReady = (callback) => {
     method: "GET",
     protocol: "http:",
     hostname: "127.0.0.1",
-    port: 8e3,
+    port: backendPort,
     path: "/"
-    // The health-check endpoint
   });
   request.on("response", (response) => {
     callback(response.statusCode === 200);
@@ -105,7 +131,7 @@ const checkBackendReady = (callback) => {
 const waitForBackend = (callback) => {
   let attempts = 0;
   const maxAttempts = 30;
-  const interval = 2e3;
+  const interval = 1e3;
   const tryConnect = () => {
     checkBackendReady((ready) => {
       if (ready) {
@@ -127,12 +153,18 @@ const waitForBackend = (callback) => {
   };
   tryConnect();
 };
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   console.log("App is ready. Starting backend...");
-  startBackend();
-  waitForBackend(() => {
-    createWindow();
-  });
+  try {
+    await startBackend();
+    waitForBackend(() => {
+      createWindow();
+    });
+  } catch (err) {
+    console.error(`Fatal: ${err.message}`);
+    dialog.showErrorBox("Backend Startup Error", err.message);
+    app.quit();
+  }
   app.on("activate", function() {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
