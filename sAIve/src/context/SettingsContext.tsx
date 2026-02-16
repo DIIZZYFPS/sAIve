@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 export type CurrencyCode = "USD" | "EUR" | "GBP" | "JPY" | "CAD" | "AUD";
-export type AiModelId = "gemma-270m" | "llama-1b";
+export type AiModelId = "gemma-270m" | "gemma-1b" | "llama-1b";
 
 interface CurrencyInfo {
     code: CurrencyCode;
@@ -20,17 +20,24 @@ export interface AiModelInfo {
 
 export const AI_MODELS: AiModelInfo[] = [
     {
-        id: "llama-1b",
-        label: "Standard",
-        description: "Smart reasoning, knows common merchants. Recommended.",
-        repo: "onnx-community/Llama-3.2-1B-Instruct-ONNX",
-        size: "~1.2 GB",
+        id: "gemma-1b",
+        label: "Gemma 3 1B",
+        description: "Best reasoning & logic. Recommended.",
+        repo: "onnx-community/gemma-3-1b-it-ONNX",
+        size: "~800 MB",
         recommended: true,
     },
     {
+        id: "llama-1b",
+        label: "Llama 3.2 1B",
+        description: "Smart generalist. Huge context (128k).",
+        repo: "onnx-community/Llama-3.2-1B-Instruct-ONNX",
+        size: "~1.2 GB",
+    },
+    {
         id: "gemma-270m",
-        label: "Lite",
-        description: "Fast & lightweight. Limited reasoning. For low-RAM devices.",
+        label: "Gemma 3 270M",
+        description: "Instant speed. Basic tasks only.",
         repo: "onnx-community/gemma-3-270m-it-ONNX",
         size: "~300 MB",
     },
@@ -74,13 +81,13 @@ function loadSettings(): StoredSettings {
             return {
                 currency: parsed.currency ?? "USD",
                 aiEnabled: parsed.aiEnabled ?? true,
-                aiModel: parsed.aiModel ?? "llama-1b",
+                aiModel: parsed.aiModel ?? "gemma-1b",
             };
         }
     } catch {
         // ignore
     }
-    return { currency: "USD", aiEnabled: true, aiModel: "llama-1b" };
+    return { currency: "USD", aiEnabled: true, aiModel: "gemma-1b" };
 }
 
 function saveSettings(settings: StoredSettings) {

@@ -109,11 +109,16 @@ export function AiProvider({ children }: { children: ReactNode }) {
                 throw new Error("WebGPU is not supported in this browser.");
             }
 
+            const adapter = await (navigator as any).gpu.requestAdapter();
+            console.log("Active WebGPU Adapter:", adapter?.info);
+
+
             generatorRef.current = await pipeline(
                 "text-generation",
                 modelConfig.repo,
                 {
                     device: "webgpu",
+                    dtype: "q4",
                     progress_callback: (prog: any) => {
                         if (prog.status === "progress") {
                             setProgress({ file: prog.file, progress: prog.progress ?? 0 });
