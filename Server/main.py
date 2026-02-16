@@ -432,3 +432,18 @@ def organize_assets(user_id: int, transactions: list[models.TransactionCreate]):
         )
 
         crud.create_user_asset(asset)
+
+if __name__ == "__main__":
+    import uvicorn
+    import socket
+
+    # Let the OS assign a free port
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+
+    # Signal the port to Electron (must be flushed immediately)
+    print(f"PORT:{port}", flush=True)
+
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
