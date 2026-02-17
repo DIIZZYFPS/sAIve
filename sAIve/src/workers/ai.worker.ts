@@ -100,8 +100,9 @@ async function generateText({ messages, config, requestId }: { messages: any[]; 
             streamer,
         });
 
-        // Only send complete if this request is still active
+        // Only send complete if this request is still active (IDs match)
         if (currentRequestId !== requestId) {
+            // This request was interrupted/cancelled, ignore the result
             return;
         }
 

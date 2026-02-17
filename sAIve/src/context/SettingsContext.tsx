@@ -111,11 +111,11 @@ function saveSettings(settings: StoredSettings) {
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-    const initial = loadSettings();
-    const [currency, setStateCurrency] = useState<CurrencyCode>(() => initial.currency);
-    const [aiEnabled, setStateAiEnabled] = useState<boolean>(() => initial.aiEnabled);
-    const [aiModel, setStateAiModel] = useState<AiModelId>(() => initial.aiModel);
-    const [hasCompletedSetup, setStateHasCompletedSetup] = useState<boolean>(() => initial.hasCompletedSetup);
+    const initialSettings = loadSettings();
+    const [currency, setStateCurrency] = useState<CurrencyCode>(() => initialSettings.currency);
+    const [aiEnabled, setStateAiEnabled] = useState<boolean>(() => initialSettings.aiEnabled);
+    const [aiModel, setStateAiModel] = useState<AiModelId>(() => initialSettings.aiModel);
+    const [hasCompletedSetup, setStateHasCompletedSetup] = useState<boolean>(() => initialSettings.hasCompletedSetup);
 
     const currencyInfo = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0];
 
