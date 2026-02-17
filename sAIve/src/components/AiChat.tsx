@@ -192,7 +192,7 @@ export default function AiChat({ trigger }: AiChatProps) {
             const history = messages.filter(m =>
                 !m.content.startsWith('Initializing') &&
                 !m.content.startsWith('✅ Model loaded')
-            ).slice(-10);
+            ).slice(-30);
 
             const promptMessages: Message[] = [
                 { role: "system", content: systemPrompt },

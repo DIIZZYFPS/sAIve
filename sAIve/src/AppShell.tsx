@@ -5,6 +5,7 @@ import App from './App';
 import AppLoader from './components/appLoader';
 import { useAi } from '@/context/AiContext';
 import { useSettings } from '@/context/SettingsContext';
+import { SetupScreen } from '@/components/SetupScreen';
 
 // The function to fetch transactions, which will be used by the query
 const fetchTransactions = async () => {
@@ -12,7 +13,7 @@ const fetchTransactions = async () => {
   return response.data;
 };
 
-const AppShell: React.FC = () => {
+const MainApp: React.FC = () => {
   const [isAppLoading, setIsAppLoading] = useState(true);
   const queryClient = useQueryClient();
   const { loadModel } = useAi();
@@ -30,6 +31,8 @@ const AppShell: React.FC = () => {
     });
 
     // Load AI model in parallel if enabled (don't block on failure)
+    // If coming from SetupScreen, it might already be loaded/loading, 
+    // but calling loadModel again is safe (handled in context/worker)
     const aiPromise = aiEnabled
       ? loadModel().catch(err => console.warn("AI model load deferred:", err))
       : Promise.resolve();
@@ -41,14 +44,23 @@ const AppShell: React.FC = () => {
       .finally(() => {
         setIsAppLoading(false);
       });
-  }, [queryClient]);
+  }, [queryClient, aiEnabled]); // added aiEnabled dependency for correctness
 
   if (isAppLoading) {
     return <AppLoader />;
   }
 
-  // App no longer needs initial data props; it will be read from the cache
   return <App />;
+};
+
+const AppShell: React.FC = () => {
+  const { hasCompletedSetup } = useSettings();
+
+  if (!hasCompletedSetup) {
+    return <SetupScreen />;
+  }
+
+  return <MainApp />;
 };
 
 export default AppShell;

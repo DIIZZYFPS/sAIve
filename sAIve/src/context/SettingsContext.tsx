@@ -73,6 +73,8 @@ interface SettingsContextType {
     setAiEnabled: (enabled: boolean) => void;
     aiModel: AiModelId;
     setAiModel: (model: AiModelId) => void;
+    hasCompletedSetup: boolean;
+    setHasCompletedSetup: (completed: boolean) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -83,6 +85,7 @@ interface StoredSettings {
     currency: CurrencyCode;
     aiEnabled: boolean;
     aiModel: AiModelId;
+    hasCompletedSetup: boolean;
 }
 
 function loadSettings(): StoredSettings {
@@ -94,12 +97,13 @@ function loadSettings(): StoredSettings {
                 currency: parsed.currency ?? "USD",
                 aiEnabled: parsed.aiEnabled ?? true,
                 aiModel: parsed.aiModel ?? "llama-1b",
+                hasCompletedSetup: parsed.hasCompletedSetup ?? false,
             };
         }
     } catch {
         // ignore
     }
-    return { currency: "USD", aiEnabled: true, aiModel: "llama-1b" };
+    return { currency: "USD", aiEnabled: true, aiModel: "llama-1b", hasCompletedSetup: false };
 }
 
 function saveSettings(settings: StoredSettings) {
@@ -107,19 +111,21 @@ function saveSettings(settings: StoredSettings) {
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-    const [currency, setCurrencyState] = useState<CurrencyCode>(() => loadSettings().currency);
-    const [aiEnabled, setAiEnabledState] = useState<boolean>(() => loadSettings().aiEnabled);
-    const [aiModel, setAiModelState] = useState<AiModelId>(() => loadSettings().aiModel);
+    const [currency, setStateCurrency] = useState<CurrencyCode>(() => loadSettings().currency);
+    const [aiEnabled, setStateAiEnabled] = useState<boolean>(() => loadSettings().aiEnabled);
+    const [aiModel, setStateAiModel] = useState<AiModelId>(() => loadSettings().aiModel);
+    const [hasCompletedSetup, setStateHasCompletedSetup] = useState<boolean>(() => loadSettings().hasCompletedSetup);
 
     const currencyInfo = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0];
 
     useEffect(() => {
-        saveSettings({ currency, aiEnabled, aiModel });
-    }, [currency, aiEnabled, aiModel]);
+        saveSettings({ currency, aiEnabled, aiModel, hasCompletedSetup });
+    }, [currency, aiEnabled, aiModel, hasCompletedSetup]);
 
-    const setCurrency = (code: CurrencyCode) => setCurrencyState(code);
-    const setAiEnabled = (enabled: boolean) => setAiEnabledState(enabled);
-    const setAiModel = (model: AiModelId) => setAiModelState(model);
+    const setCurrency = (code: CurrencyCode) => setStateCurrency(code);
+    const setAiEnabled = (enabled: boolean) => setStateAiEnabled(enabled);
+    const setAiModel = (model: AiModelId) => setStateAiModel(model);
+    const setHasCompletedSetup = (completed: boolean) => setStateHasCompletedSetup(completed);
 
     const formatCurrency = (amount: number): string => {
         return `${currencyInfo.symbol}${amount.toLocaleString()}`;
@@ -136,12 +142,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 setAiEnabled,
                 aiModel,
                 setAiModel,
+                hasCompletedSetup,
+                setHasCompletedSetup,
             }}
         >
             {children}
         </SettingsContext.Provider>
     );
 }
+
 
 export function useSettings() {
     const context = useContext(SettingsContext);
