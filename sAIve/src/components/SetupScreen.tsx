@@ -47,6 +47,13 @@ export function SetupScreen() {
         }
     }, [isSettingUp, isModelLoaded, setHasCompletedSetup]);
 
+    // Effect: handle error status to allow retry
+    useEffect(() => {
+        if (isSettingUp && status === "error") {
+            setIsSettingUp(false);
+        }
+    }, [isSettingUp, status]);
+
     const currentModelInfo = AI_MODELS.find(m => m.id === aiModel);
 
     return (
@@ -120,6 +127,8 @@ export function SetupScreen() {
                                                 <>
                                                     <Check className="h-4 w-4 text-green-500" /> Ready
                                                 </>
+                                            ) : status === "error" ? (
+                                                <span className="text-red-500">Error loading model</span>
                                             ) : (
                                                 <>
                                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -157,10 +166,10 @@ export function SetupScreen() {
                         className="w-full"
                         size="lg"
                         onClick={handleStart}
-                        disabled={isSettingUp && !isModelLoaded}
+                        disabled={isSettingUp && !isModelLoaded && status !== "error"}
                     >
                         {isSettingUp ? (
-                            isModelLoaded ? "Enter App" : "Setting things up..."
+                            isModelLoaded ? "Enter App" : status === "error" ? "Retry" : "Setting things up..."
                         ) : (
                             "Start sAIve"
                         )}

@@ -44,7 +44,7 @@ const MainApp: React.FC = () => {
       .finally(() => {
         setIsAppLoading(false);
       });
-  }, [queryClient, aiEnabled]); // added aiEnabled dependency for correctness
+  }, [queryClient, aiEnabled, loadModel]);
 
   if (isAppLoading) {
     return <AppLoader />;
