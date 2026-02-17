@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 export type CurrencyCode = "USD" | "EUR" | "GBP" | "JPY" | "CAD" | "AUD";
-export type AiModelId = "gemma-270m" | "gemma-1b" | "llama-1b";
+export type AiModelId = "gemma-270m" | "gemma-1b" | "llama-1b" | "lfm2-1b";
 
 interface CurrencyInfo {
     code: CurrencyCode;
@@ -15,31 +15,43 @@ export interface AiModelInfo {
     description: string;
     repo: string;
     size: string;
+    dtype: string;
     recommended?: boolean;
 }
 
 export const AI_MODELS: AiModelInfo[] = [
-    {
-        id: "gemma-1b",
-        label: "Gemma 3 1B",
-        description: "Best reasoning & logic. Recommended.",
-        repo: "onnx-community/gemma-3-1b-it-ONNX",
-        size: "~800 MB",
-        recommended: true,
-    },
     {
         id: "llama-1b",
         label: "Llama 3.2 1B",
         description: "Smart generalist. Huge context (128k).",
         repo: "onnx-community/Llama-3.2-1B-Instruct-ONNX",
         size: "~1.2 GB",
+        dtype: "q4",
+    },
+    {
+        id: "lfm2-1b",
+        label: "LFM2 1.2B",
+        description: "Best reasoning & creativity in 1B class. By Liquid AI. Recommended.",
+        repo: "onnx-community/LFM2-1.2B-ONNX",
+        size: "~800 MB",
+        dtype: "q4",
+        recommended: true,
+    },
+    {
+        id: "gemma-1b",
+        label: "Gemma 3 1B",
+        description: "Google's model. Requires powerful GPU (fp16).",
+        repo: "onnx-community/gemma-3-1b-it-ONNX-GQA",
+        size: "~2 GB",
+        dtype: "fp16",
     },
     {
         id: "gemma-270m",
         label: "Gemma 3 270M",
-        description: "Instant speed. Basic tasks only.",
+        description: "Instant speed. Basic tasks only. For low-RAM devices.",
         repo: "onnx-community/gemma-3-270m-it-ONNX",
         size: "~300 MB",
+        dtype: "q4",
     },
 ];
 
@@ -81,13 +93,13 @@ function loadSettings(): StoredSettings {
             return {
                 currency: parsed.currency ?? "USD",
                 aiEnabled: parsed.aiEnabled ?? true,
-                aiModel: parsed.aiModel ?? "gemma-1b",
+                aiModel: parsed.aiModel ?? "llama-1b",
             };
         }
     } catch {
         // ignore
     }
-    return { currency: "USD", aiEnabled: true, aiModel: "gemma-1b" };
+    return { currency: "USD", aiEnabled: true, aiModel: "llama-1b" };
 }
 
 function saveSettings(settings: StoredSettings) {

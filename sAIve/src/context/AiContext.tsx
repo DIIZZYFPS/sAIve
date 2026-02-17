@@ -118,7 +118,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
                 modelConfig.repo,
                 {
                     device: "webgpu",
-                    dtype: "q4",
+                    dtype: modelConfig.dtype,
                     progress_callback: (prog: any) => {
                         if (prog.status === "progress") {
                             setProgress({ file: prog.file, progress: prog.progress ?? 0 });
