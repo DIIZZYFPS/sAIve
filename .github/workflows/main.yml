@@ -44,6 +44,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -87,6 +88,8 @@ jobs:
       - name: Build Windows application
         run: npm run electron:build
         working-directory: sAIve
+        env:
+            GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
