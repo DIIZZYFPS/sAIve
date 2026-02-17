@@ -49,7 +49,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: saive-macos-build
-          path: sAIve/release/*.dmg
+          path: |
+            sAIve/release/*.dmg
+            sAIve/release/*.yml
+            sAIve/release/*.blockmap
 
   # Job to build the Windows application
   build-windows:
@@ -89,7 +92,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: saive-win-build
-          path: sAIve/release/*.exe
+          path: |
+            sAIve/release/*.exe
+            sAIve/release/*.yml
+            sAIve/release/*.blockmap
 
   # Job to create a public GitHub release
   release:
@@ -125,9 +131,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: |
             release/*.dmg
             release/*.exe
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
-          name: Release v${{ steps.get_version.outputs.VERSION }}
-          body: "Automated release of macOS and Windows builds."
+            release/*.yml
+            release/*.blockmap

@@ -1,5 +1,6 @@
 // electron.js
-import { app, BrowserWindow, dialog, net, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, net, ipcMain, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
@@ -91,9 +92,14 @@ const startBackend = () => {
 
     console.log(`Starting backend: ${executable} ${args.join(' ')} in ${cwd}`);
 
+    // Pass User Data path to backend for persistent DB storage
+    const userDataPath = app.getPath('userData');
+    const env = { ...process.env, SAIVE_USER_DATA: userDataPath };
+
     pythonProcess = spawn(executable, args, {
       cwd: cwd,
       stdio: 'pipe',
+      env: env,
     });
 
     let portFound = false;
@@ -204,7 +210,38 @@ app.whenReady().then(async () => {
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+
+  // Check for updates after a short delay
+  setTimeout(() => {
+    autoUpdater.checkForUpdates();
+  }, 3000);
 });
+
+// --- Auto-Updater Events ---
+autoUpdater.autoDownload = false;
+autoUpdater.allowPrerelease = true;
+
+autoUpdater.on('update-available', (info) => {
+  log(`Update available: ${info.version}`);
+  dialog.showMessageBox({
+    type: 'info',
+    title: 'Update Available',
+    message: `A new version (${info.version}) of sAIve is available.`,
+    detail: 'Click "Download" to view the release on GitHub.',
+    buttons: ['Download', 'Later'],
+    defaultId: 0,
+    cancelId: 1
+  }).then(({ response }) => {
+    if (response === 0) {
+      shell.openExternal('https://github.com/DIIZZYFPS/sAIve/releases/latest');
+    }
+  });
+});
+
+autoUpdater.on('error', (err) => {
+  log(`Updater error: ${err}`);
+});
+
 
 app.on('will-quit', () => {
   if (pythonProcess) {

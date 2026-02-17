@@ -1,9 +1,20 @@
 {
   "name": "saive",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "An AI-powered budgeting application.",
   "author": "DIIZZY",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DIIZZYFPS/sAIve"
+  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "DIIZZYFPS",
+      "repo": "sAIve"
+    }
+  ],
   "type": "module",
   "main": "dist-electron/electron.js",
   "scripts": {
@@ -33,6 +44,7 @@
     "axios": "^1.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.7.3",
     "lucide-react": "^0.511.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^19.1.0",
