@@ -8,12 +8,13 @@ env.useBrowserCache = true;
 // Define message types
 type AIWorkerMessage =
     | { type: "load"; model: string; dtype: string; device?: string }
-    | { type: "generate"; messages: any[]; config: any }
-    | { type: "interrupt" };
+    | { type: "generate"; messages: any[]; config: any; requestId: string }
+    | { type: "interrupt"; requestId?: string };
 
 // Global state
 let generator: any = null;
 let currentModel: string | null = null;
+let currentRequestId: string | null = null;
 
 self.addEventListener("message", async (e: MessageEvent<AIWorkerMessage>) => {
     const { type } = e.data;
@@ -26,7 +27,14 @@ self.addEventListener("message", async (e: MessageEvent<AIWorkerMessage>) => {
             await generateText(e.data as any);
             break;
         case "interrupt":
-            // Transformers.js doesn't support easy interruption yet
+            // Clear current request ID to ignore late messages
+            if (e.data.requestId) {
+                if (currentRequestId === e.data.requestId) {
+                    currentRequestId = null;
+                }
+            } else {
+                currentRequestId = null;
+            }
             break;
     }
 });
@@ -66,20 +74,24 @@ async function loadModel({ model, dtype, device = "webgpu" }: { model: string; d
     }
 }
 
-async function generateText({ messages, config }: { messages: any[]; config: any }) {
+async function generateText({ messages, config, requestId }: { messages: any[]; config: any; requestId: string }) {
     if (!generator) {
-        self.postMessage({ status: "error", error: "Model not loaded" });
+        self.postMessage({ status: "error", error: "Model not loaded", requestId });
         return;
     }
 
-    self.postMessage({ status: "generating" });
+    currentRequestId = requestId;
+    self.postMessage({ status: "generating", requestId });
 
     try {
         const streamer = new TextStreamer(generator.tokenizer, {
             skip_prompt: true,
             skip_special_tokens: true,
             callback_function: (text: string) => {
-                self.postMessage({ type: "token", token: text });
+                // Only send token if this request is still active
+                if (currentRequestId === requestId) {
+                    self.postMessage({ type: "token", token: text, requestId });
+                }
             }
         });
 
@@ -87,6 +99,12 @@ async function generateText({ messages, config }: { messages: any[]; config: any
             ...config,
             streamer,
         });
+
+        // Only send complete if this request is still active (IDs match)
+        if (currentRequestId !== requestId) {
+            // This request was interrupted/cancelled, ignore the result
+            return;
+        }
 
         // Extract the final response text
         let finalResponse = "";
@@ -103,8 +121,11 @@ async function generateText({ messages, config }: { messages: any[]; config: any
             }
         }
 
-        self.postMessage({ type: "complete", output: finalResponse });
+        self.postMessage({ type: "complete", output: finalResponse, requestId });
     } catch (err: any) {
-        self.postMessage({ status: "error", error: err.message });
+        // Only send error if this request is still active
+        if (currentRequestId === requestId) {
+            self.postMessage({ status: "error", error: err.message, requestId });
+        }
     }
 }

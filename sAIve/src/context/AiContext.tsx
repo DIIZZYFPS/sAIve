@@ -30,10 +30,14 @@ export function AiProvider({ children }: { children: ReactNode }) {
     const [progress, setProgress] = useState<{ file: string; progress: number } | null>(null);
     const { aiModel } = useSettings();
 
-    // Promise resolvers for generate calls
-    // We treat generation as a singleton operation for simplicity
+    // Promise resolvers for loadModel calls
+    const loadModelResolveRef = useRef<(() => void) | null>(null);
+    const loadModelRejectRef = useRef<((reason?: any) => void) | null>(null);
+
+    // Promise resolvers for generate calls with request ID tracking
     const generateResolveRef = useRef<((value: string) => void) | null>(null);
     const generateRejectRef = useRef<((reason?: any) => void) | null>(null);
+    const currentRequestIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         // Initialize worker
@@ -41,7 +45,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
             workerRef.current = new Worker(new URL('../workers/ai.worker.ts', import.meta.url), { type: 'module' });
 
             workerRef.current.onmessage = (e) => {
-                const { status: workerStatus, type, data, output, error } = e.data;
+                const { status: workerStatus, type, data, output, error, requestId } = e.data;
 
                 // Handle status updates
                 if (workerStatus) {
@@ -52,15 +56,28 @@ export function AiProvider({ children }: { children: ReactNode }) {
                         setIsModelLoaded(true);
                         setStatus("idle");
                         setProgress(null);
-                        // Only toast if we were waiting for it? 
-                        // Actually, loadModel is called explicitly.
+                        // Resolve loadModel promise
+                        if (loadModelResolveRef.current) {
+                            loadModelResolveRef.current();
+                            loadModelResolveRef.current = null;
+                            loadModelRejectRef.current = null;
+                        }
                     }
                     if (workerStatus === "error") {
                         setStatus("error");
                         toast.error(error || "AI Error");
-                        if (generateRejectRef.current) {
+                        // Reject loadModel promise if waiting for it
+                        if (loadModelRejectRef.current) {
+                            loadModelRejectRef.current(new Error(error));
+                            loadModelRejectRef.current = null;
+                            loadModelResolveRef.current = null;
+                        }
+                        // Reject generate promise if waiting and matches requestId
+                        if (generateRejectRef.current && requestId === currentRequestIdRef.current) {
                             generateRejectRef.current(new Error(error));
                             generateRejectRef.current = null;
+                            generateResolveRef.current = null;
+                            currentRequestIdRef.current = null;
                         }
                     }
                 }
@@ -70,10 +87,12 @@ export function AiProvider({ children }: { children: ReactNode }) {
                 }
 
                 if (type === "complete") {
-                    if (generateResolveRef.current) {
+                    // Only resolve if requestId matches
+                    if (generateResolveRef.current && requestId === currentRequestIdRef.current) {
                         generateResolveRef.current(output);
                         generateResolveRef.current = null;
                         generateRejectRef.current = null;
+                        currentRequestIdRef.current = null;
                     }
                     setStatus("idle");
                 }
@@ -89,14 +108,20 @@ export function AiProvider({ children }: { children: ReactNode }) {
     const loadModel = useCallback(async () => {
         const modelConfig = AI_MODELS.find((m) => m.id === aiModel) ?? AI_MODELS[0];
 
-        // Reset state
-        setIsModelLoaded(false);
-        setStatus("loading");
+        return new Promise<void>((resolve, reject) => {
+            // Reset state
+            setIsModelLoaded(false);
+            setStatus("loading");
 
-        workerRef.current?.postMessage({
-            type: "load",
-            model: modelConfig.repo,
-            dtype: modelConfig.dtype
+            // Store promise resolvers
+            loadModelResolveRef.current = resolve;
+            loadModelRejectRef.current = reject;
+
+            workerRef.current?.postMessage({
+                type: "load",
+                model: modelConfig.repo,
+                dtype: modelConfig.dtype
+            });
         });
     }, [aiModel]);
 
@@ -106,10 +131,14 @@ export function AiProvider({ children }: { children: ReactNode }) {
         // but typically UI should prevent it.
 
         return new Promise((resolve, reject) => {
-            // Cancel any pending generation?
+            // Cancel any pending generation
             if (generateRejectRef.current) {
                 generateRejectRef.current(new Error("New generation started"));
             }
+
+            // Generate unique request ID
+            const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            currentRequestIdRef.current = requestId;
 
             generateResolveRef.current = resolve;
             generateRejectRef.current = reject;
@@ -127,6 +156,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
             workerRef.current?.postMessage({
                 type: "generate",
                 messages,
+                requestId,
                 config: {
                     max_new_tokens: maxTokens,
                     temperature: 0.7,
@@ -161,11 +191,14 @@ export function AiProvider({ children }: { children: ReactNode }) {
     }, [isModelLoaded, generate]);
 
     const interrupt = useCallback(() => {
-        workerRef.current?.postMessage({ type: "interrupt" });
+        const requestId = currentRequestIdRef.current;
+        workerRef.current?.postMessage({ type: "interrupt", requestId });
         if (generateRejectRef.current) {
             generateRejectRef.current(new Error("Interrupted"));
             generateRejectRef.current = null;
+            generateResolveRef.current = null;
         }
+        currentRequestIdRef.current = null;
         setStatus("idle");
     }, []);
 
