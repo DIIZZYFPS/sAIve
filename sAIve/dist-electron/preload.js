@@ -1,10 +1,10 @@
-const { contextBridge, ipcRenderer } = require("electron");
-contextBridge.exposeInMainWorld("electronAPI", {
+const { contextBridge: t, ipcRenderer: o } = require("electron");
+t.exposeInMainWorld("electronAPI", {
   // Get the dynamically assigned backend port
-  getBackendPort: () => ipcRenderer.invoke("get-backend-port"),
+  getBackendPort: () => o.invoke("get-backend-port"),
   // Generic IPC helpers
-  sendMessage: (channel, data) => ipcRenderer.send(channel, data),
-  onMessage: (channel, func) => {
-    ipcRenderer.on(channel, (event, ...args) => func(...args));
+  sendMessage: (e, n) => o.send(e, n),
+  onMessage: (e, n) => {
+    o.on(e, (s, ...r) => n(...r));
   }
 });
