@@ -13,10 +13,9 @@ import { useState, type Key, type ReactElement, } from "react";
 import { TrendingUp, TrendingDown, ChevronRight, ChevronLeft } from "lucide-react";
 
 import { Trash2 } from "lucide-react";
-import api from "@/lib/api";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 import { useSettings } from "@/context/SettingsContext";
+import { useDeleteTransaction } from "@/hooks/useDeleteTransaction";
 
 interface Transaction {
   id: number;
@@ -37,18 +36,13 @@ export function TransactionsTable({ pageSize = 10, transactions, isLoading, isEr
   refetch: () => void;
 }) {
   const [page, setPage] = useState(0);
-  const queryClient = useQueryClient();
   const { formatCurrency } = useSettings();
+
+  const { mutateAsync: deleteTransaction } = useDeleteTransaction();
 
   const handleDelete = (id: number) => {
     toast.promise(
-      api.delete(`/transactions/${id}`).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["transactions"] });
-        queryClient.invalidateQueries({ queryKey: ["asset"] });
-        queryClient.invalidateQueries({ queryKey: ["assets"] });
-        queryClient.invalidateQueries({ queryKey: ["categories"] });
-        queryClient.invalidateQueries({ queryKey: ["sankeyData"] });
-      }),
+      deleteTransaction(id),
       {
         loading: "Deleting transaction...",
         success: "Transaction deleted successfully",

@@ -106,9 +106,20 @@ jobs:
     needs: [build-macos, build-windows]
     permissions:
       contents: write
+      pull-requests: read  # Required for Release Drafter to read PR labels
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # 1. NEW STEP: Generate the "What's New" text
+      - name: Generate Release Notes
+        id: release_drafter
+        uses: release-drafter/release-drafter@v6
+        with:
+          config-name: release-drafter.yml
+          disable-autolabeler: true # We only want the notes, not the labeling logic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -126,20 +137,22 @@ jobs:
         with:
           name: saive-win-build
           path: release/
-          
+      
       - name: Get project version
         id: get_version
         run: echo "VERSION=$(node -p "require('./sAIve/package.json').version")" >> $GITHUB_OUTPUT
 
+      # 2. UPDATE STEP: Use the generated body
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
-          name: Release v${{ steps.get_version.outputs.VERSION }}
-          generate_release_notes: true
+          tag_name: v${{ steps.get_version.outputs.VERSION }} # Explicitly set tag
+          name: v${{ steps.get_version.outputs.VERSION }}
+          body: ${{ steps.release_drafter.outputs.body }}     # <--- INJECT THE FANCY NOTES HERE
+          draft: false
+          prerelease: false
           files: |
             release/*.dmg
             release/*.exe
             release/*.yml
             release/*.blockmap
-

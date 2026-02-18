@@ -6,6 +6,11 @@
 
 ## ✨ Features
 
+* **🤖 Local AI Engine:**
+    * **Privacy-First:** Powered by a customized **Gemma 3 270M** model running entirely on-device via WebGPU. Your financial data *never* leaves your computer.
+    * **Smart Categorization:** Automatically suggests categories for new transactions based on the description.
+    * **Intelligent Assistant:** Chat with your finances. Ask questions like "How much did I spend on food this month?" or "What is my savings rate?".
+    * **Daily Briefing:** Get a generated summary of your financial health upon opening the dashboard.
 * **Dashboard Overview:** At-a-glance view of total income, expenses, savings, and net worth.
 * **Transaction Management:**
     * Add, view, (and implicitly edit/delete) financial transactions.
@@ -20,6 +25,8 @@
     * Collapsible sidebar for easy navigation.
     * Modern interface built with TailwindCSS and Shadcn UI components.
 * **Theming:** Light, Dark, and System theme options with persistence via localStorage.
+* **Auto-Updater:** Notifies users of new updates available on GitHub.
+* **Data Persistence:** User data is safely stored in the application data directory, ensuring it survives updates.
 
 ---
 
@@ -42,6 +49,10 @@ https://github.com/user-attachments/assets/a9e4689d-e8de-4220-b063-7ea0d7ab0c43
 * **Routing:** React Router DOM
 * **UI Components:** Radix UI (via Shadcn UI)
 * **Notifications:** Sonner
+* **AI Engine:**
+    * **Model:** Google Gemma 3 270M (Int4 quantized)
+    * **Inference:** WebGPU (via customized inference engine)
+    * **Execution:** Web Worker (non-blocking UI)
 
 **Backend:**
 
@@ -128,18 +139,9 @@ To build the Electron application for production:
 
 This section outlines potential enhancements and future directions for sAIve:
 
-* 🧠 **AI-Powered Budgeting Assistant with Model Context Protocol (MCP) Integration:**
-    * **Leverage MCP for Advanced AI Capabilities:**
-        * **Standardized & Secure Data Access:** Implement sAIve to utilize MCP, enabling the AI budgeting assistant to securely and seamlessly connect with a wide array of external data sources. This could include accessing local user files (e.g., bank statements, exported transaction histories from other services), calling external APIs (e.g., financial institutions via Plaid, market data providers), or interacting with other MCP-enabled tools and services in a standardized way.
-        * **Enhanced Tool Use & Extensibility:** Expose sAIve's core budgeting functionalities (like transaction analysis, report generation, or saving goal calculations) as tools via an MCP server. Conversely, sAIve's AI could act as an MCP client to consume external tools (e.g., advanced forecasting models, debt management services) to provide more comprehensive financial assistance.
-    * **AI-Driven Insights (Powered by MCP-facilitated Data):**
-        * **Smart Categorization:** AI automatically categorizes transactions with higher accuracy by securely accessing and analyzing transaction details obtained via MCP.
-        * **Spending Pattern Analysis:** AI identifies trends, anomalies, and areas for potential savings by processing data from various connected sources.
-        * **Predictive Budgeting:** Forecast future financial states based on historical data and information from linked accounts or services.
-        * **Personalized Financial Advice:** Offer tailored tips and recommendations for budget optimization by leveraging a holistic view of the user's financial data accessible through MCP.
-    * **Natural Language Interaction & Agentic Capabilities:**
-        * Users can interact with the AI assistant using natural language (e.g., "sAIve, how much did I spend on dining out last month?", "What are my largest upcoming bills according to my calendar and imported data?").
-        * Enable the AI to perform more complex, multi-step financial tasks by orchestrating internal tools and external services connected through MCP.
+* 🧠 **Advanced Agentic Capabilities:**
+    * **Model Context Protocol (MCP):** Future integration to allow sAIve to securely connect with external data tools (e.g., calendar for upcoming bills) while keeping the core reasoning local.
+    * **Proactive Budgeting:** Move from reactive tracking to proactive forecasting and advice.
 * 🔗 **Direct Plaid Integration (Potentially via MCP):** Allow users to securely connect their bank accounts for automatic transaction importing, streamlining data entry and leveraging MCP for standardized communication if Plaid offers MCP compatibility or if an intermediary MCP server is used. Possible scrap since all data is perferred to stay on device
 * 📊 **Advanced Reporting & Export:**
     * Generate customizable financial reports (e.g., monthly/yearly summaries, category breakdowns, net worth statements).

@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useTheme } from "@/components/ThemeProvider";
+import Layout from '@/Layout';
 
 import Index from '@/pages/Index';
 import Flow from '@/pages/Flow';
@@ -21,11 +22,13 @@ function App() {
       <ThemedToaster />
       <HashRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/flow" element={<Flow />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/flow" element={<Flow />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </HashRouter>

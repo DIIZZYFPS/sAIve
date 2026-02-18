@@ -92,9 +92,11 @@ const startBackend = () => {
 
     console.log(`Starting backend: ${executable} ${args.join(' ')} in ${cwd}`);
 
-    // Pass User Data path to backend for persistent DB storage
-    const userDataPath = app.getPath('userData');
-    const env = { ...process.env, SAIVE_USER_DATA: userDataPath };
+    // Pass User Data path to backend for persistent DB storage only in production
+    const env = { ...process.env };
+    if (app.isPackaged) {
+      env.SAIVE_USER_DATA = app.getPath('userData');
+    }
 
     pythonProcess = spawn(executable, args, {
       cwd: cwd,
