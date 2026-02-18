@@ -188,7 +188,7 @@ def get_transaction(transaction_id: int):
     conn.close()
 
     if row:
-        return Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'])
+        return Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient'])
     return None
 
 def get_all_transactions():

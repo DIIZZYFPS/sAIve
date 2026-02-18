@@ -106,11 +106,37 @@ def read_transaction(transaction_id: int):
 
 @app.delete("/transactions/{transaction_id}")
 def delete_transaction(transaction_id: int):
+    # Get transaction details first to know which user to update
+    transaction = crud.get_transaction(transaction_id)
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    user_id = transaction.user_id
     crud.delete_transaction(transaction_id)
-    # Recalculate monthly stats after deletion (simplified for now, ideally strictly by date)
-    # For now we just return success, user might need to trigger a recalc or we do it here.
-    # To do it properly we should get the transaction details first to know which month to update.
-    # But for now, let's just delete.
+    
+    # Recalculate monthly stats for this user
+    # Fetch ALL transactions to rebuild state correctly
+    # Note: Existing create_transaction logic re-fetches all globally, we should filter by user
+    # But for now let's stick to the pattern but filter in memory if needed, 
+    # or ideally update crud to get_all_transactions(user_id)
+    
+    # Current implementation of get_all_transactions() returns ALL users' txns
+    # We should add a crud method to get transactions for a specific user to be safe/efficient
+    # But checking crud.py: get_all_transactions() is global.
+    # Let's use get_all_transactions() and filter in python for now to match create_transaction pattern
+    # OR better: The existing month_update and organize_assets take a list of transactions.
+    
+    all_transactions = crud.get_all_transactions() # This gets EVERYONE'S transactions
+    
+    # Filter for just this user to avoiding messing up others (if multi-user)
+    user_transactions = [t for t in all_transactions if t.user_id == user_id]
+    
+    # First, recompute net worth based on the updated set of transactions
+    update_networth(user_id, transactions=user_transactions)
+    # Then update monthly stats and assets, which may depend on user.net_worth
+    month_update(user_id, user_transactions)
+    organize_assets(user_id, user_transactions)
+    
     return {"detail": "Transaction deleted"}
 
 @app.get("/stats/sankey/{user_id}")
@@ -382,9 +408,7 @@ def organize_assets(user_id: int, transactions: list[models.TransactionCreate]):
         # Filter transactions for the current asset's month and year
         monTransactions = [t for t in transactions if t.date.month == asset.month and t.date.year == asset.year]
 
-        if not monTransactions:
-            continue  # No transactions for this asset, skip to next
-
+        # Calculate totals even if there are no transactions (important for deletes)
         for transaction in monTransactions:
             if transaction.type == "income":
                 TotalIncome += transaction.amount
