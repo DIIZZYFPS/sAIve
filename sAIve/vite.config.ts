@@ -4,9 +4,15 @@ import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
+import fs from 'node:fs'
+
+const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'))
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    '__APP_VERSION__': JSON.stringify(packageJson.version),
+  },
   base: './',
   plugins: [
     react(),
