@@ -11,6 +11,7 @@ export const useDeleteTransaction = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["transactions"] });
             queryClient.invalidateQueries({ queryKey: ["user_assets"] });
+            queryClient.invalidateQueries({ queryKey: ["asset"] });
             queryClient.invalidateQueries({ queryKey: ["category_totals"] });
             queryClient.invalidateQueries({ queryKey: ["monthly_totals"] });
             queryClient.invalidateQueries({ queryKey: ["daily_spending"] });
