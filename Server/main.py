@@ -131,9 +131,11 @@ def delete_transaction(transaction_id: int):
     # Filter for just this user to avoiding messing up others (if multi-user)
     user_transactions = [t for t in all_transactions if t.user_id == user_id]
     
+    # First, recompute net worth based on the updated set of transactions
+    update_networth(user_id, transactions=user_transactions)
+    # Then update monthly stats and assets, which may depend on user.net_worth
     month_update(user_id, user_transactions)
     organize_assets(user_id, user_transactions)
-    update_networth(user_id, transactions=user_transactions)
     
     return {"detail": "Transaction deleted"}
 
@@ -406,9 +408,7 @@ def organize_assets(user_id: int, transactions: list[models.TransactionCreate]):
         # Filter transactions for the current asset's month and year
         monTransactions = [t for t in transactions if t.date.month == asset.month and t.date.year == asset.year]
 
-        if not monTransactions:
-            continue  # No transactions for this asset, skip to next
-
+        # Calculate totals even if there are no transactions (important for deletes)
         for transaction in monTransactions:
             if transaction.type == "income":
                 TotalIncome += transaction.amount
