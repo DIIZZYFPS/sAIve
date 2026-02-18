@@ -121,7 +121,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ... (Download artifacts steps) ...
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Download macOS build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: saive-macos-build
+          path: release/
+
+      - name: Download Windows build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: saive-win-build
+          path: release/
       
       - name: Get project version
         id: get_version
