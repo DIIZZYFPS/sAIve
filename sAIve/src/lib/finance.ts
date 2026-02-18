@@ -8,10 +8,33 @@
  * Actually, let's make it robust.
  */
 
-export const calculatePercentageChange = (current: number, previous: number | null | undefined): string => {
-    if (previous === null || previous === undefined || previous === 0) {
+export const calculatePercentageChange = (
+    current: number | null | undefined,
+    previous: number | null | undefined
+): string => {
+    // Guard against invalid current values
+    if (
+        current === null ||
+        current === undefined ||
+        Number.isNaN(current)
+    ) {
         return "No Change";
     }
+
+    // Guard against invalid or zero previous values to avoid division issues
+    if (
+        previous === null ||
+        previous === undefined ||
+        previous === 0 ||
+        Number.isNaN(previous)
+    ) {
+        return "No Change";
+    }
+
     const change = ((current - previous) / previous) * 100;
+
+    if (!Number.isFinite(change)) {
+        return "No Change";
+    }
     return `${change.toFixed(2)}% from last month`;
 };
