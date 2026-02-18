@@ -319,7 +319,7 @@ function DashboardHeader({ pageName }: { pageName: string }) {
           </DropdownMenuContent>
         </DropdownMenu>
         <Drawer open={isOpen} onOpenChange={setIsOpen} shouldScaleBackground={true}>
-          <DrawerTrigger >
+          <DrawerTrigger asChild>
             <Button variant="ghost" className="bg-primary">
               <Plus className="mr-1 h-4 w-4" />
               Add Transaction
