@@ -289,7 +289,7 @@ const Settings = () => {
                         <CardContent className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-muted-foreground">Version</span>
-                                <span className="text-sm font-mono">0.4.3</span>
+                                <span className="text-sm font-mono">0.4.4</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-muted-foreground">App</span>

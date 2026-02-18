@@ -23,8 +23,8 @@ const chartConfig = {
         label: "Food",
         color: "#f59e0b",
     },
-    Transport: {
-        label: "Transport",
+    Transportation: {
+        label: "Transportation",
         color: "#6366f1",
     },
 } satisfies ChartConfig
@@ -38,7 +38,7 @@ export function BigThreeChart({ expanded = false }: BigThreeChartProps) {
     const { data: history = [], isLoading } = useQuery({
         queryKey: ["categoryHistory"],
         queryFn: async () => {
-            const response = await api.get("/stats/category-history/1?categories=Housing,Food,Transport");
+            const response = await api.get("/stats/category-history/1?categories=Housing,Food,Transportation");
             return response.data;
         },
     });
@@ -73,7 +73,7 @@ export function BigThreeChart({ expanded = false }: BigThreeChartProps) {
                 />
                 <Line dataKey="Housing" type="monotone" stroke="var(--color-Housing)" strokeWidth={2} dot={{ r: expanded ? 3 : 1.5 }} />
                 <Line dataKey="Food" type="monotone" stroke="var(--color-Food)" strokeWidth={2} dot={{ r: expanded ? 3 : 1.5 }} />
-                <Line dataKey="Transport" type="monotone" stroke="var(--color-Transport)" strokeWidth={2} dot={{ r: expanded ? 3 : 1.5 }} />
+                <Line dataKey="Transportation" type="monotone" stroke="var(--color-Transportation)" strokeWidth={2} dot={{ r: expanded ? 3 : 1.5 }} />
                 {expanded && (
                     <ChartLegend content={<ChartLegendContent />} />
                 )}
