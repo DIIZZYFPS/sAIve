@@ -48,7 +48,6 @@ https://github.com/user-attachments/assets/a9e4689d-e8de-4220-b063-7ea0d7ab0c43
 * **API Client:** Axios
 * **Routing:** React Router DOM
 * **UI Components:** Radix UI (via Shadcn UI)
-* **UI Components:** Radix UI (via Shadcn UI)
 * **Notifications:** Sonner
 * **AI Engine:**
     * **Model:** Google Gemma 3 270M (Int4 quantized)
