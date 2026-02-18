@@ -92,7 +92,6 @@ const startBackend = () => {
 
     console.log(`Starting backend: ${executable} ${args.join(' ')} in ${cwd}`);
 
-    // Pass User Data path to backend for persistent DB storage
     // Pass User Data path to backend for persistent DB storage only in production
     const env = { ...process.env };
     if (app.isPackaged) {
