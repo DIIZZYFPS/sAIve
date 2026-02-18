@@ -19,6 +19,8 @@ const MainApp: React.FC = () => {
   const { loadModel } = useAi();
   const { aiEnabled } = useSettings();
 
+  const hasInitiatedLoad = React.useRef(false);
+
   useEffect(() => {
     const minDisplayTime = 2000; // Minimum 2 seconds loader time
 
@@ -30,21 +32,25 @@ const MainApp: React.FC = () => {
       queryFn: fetchTransactions,
     });
 
-    // Load AI model in parallel if enabled (don't block on failure)
-    // If coming from SetupScreen, it might already be loaded/loading, 
-    // but calling loadModel again is safe (handled in context/worker)
-    const aiPromise = aiEnabled
-      ? loadModel().catch(err => console.warn("AI model load deferred:", err))
-      : Promise.resolve();
-
-    Promise.all([timerPromise, dataPromise, aiPromise])
+    Promise.all([timerPromise, dataPromise])
       .catch(error => {
         console.error("Failed to pre-fetch initial data:", error);
       })
       .finally(() => {
         setIsAppLoading(false);
       });
-  }, [queryClient, aiEnabled, loadModel]);
+  }, [queryClient]);
+
+  // Separate effect for AI loading to prevent re-triggering loop
+  useEffect(() => {
+    if (aiEnabled && !hasInitiatedLoad.current) {
+      hasInitiatedLoad.current = true;
+      // Add delay to ensure worker script is fully evaluated and listening
+      setTimeout(() => {
+        loadModel().catch(err => console.warn("Background AI model load failed:", err));
+      }, 1000);
+    }
+  }, [aiEnabled, loadModel]);
 
   if (isAppLoading) {
     return <AppLoader />;

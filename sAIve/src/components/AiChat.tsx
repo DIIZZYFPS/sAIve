@@ -224,17 +224,23 @@ export default function AiChat({ trigger }: AiChatProps) {
                 </DrawerHeader>
 
                 {/* Progress overlay */}
-                {progress && (
+                {(progress || (status === 'loading' && !isModelLoaded)) && (
                     <div className="px-4 py-6 flex flex-col items-center gap-3 border-b">
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        <p className="text-xs font-medium">Downloading Model...</p>
-                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-primary transition-all duration-300"
-                                style={{ width: `${progress.progress ?? 0}%` }}
-                            />
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">{progress.file} ({Math.round(progress.progress ?? 0)}%)</p>
+                        <p className="text-xs font-medium">
+                            {progress ? "Downloading Model..." : "Initializing AI Engine..."}
+                        </p>
+                        {progress && (
+                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-primary transition-all duration-300"
+                                    style={{ width: `${progress.progress ?? 0}%` }}
+                                />
+                            </div>
+                        )}
+                        {progress?.file && (
+                            <p className="text-[10px] text-muted-foreground">{progress.file} ({Math.round(progress.progress ?? 0)}%)</p>
+                        )}
                     </div>
                 )}
 

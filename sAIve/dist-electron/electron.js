@@ -15342,6 +15342,9 @@ function createWindow() {
   }
 }
 ipcMain.handle("get-backend-port", () => backendPort);
+ipcMain.on("console-log", (event, message) => {
+  console.log(`[Renderer] ${message}`);
+});
 const startBackend = () => {
   return new Promise((resolve, reject) => {
     let executable;

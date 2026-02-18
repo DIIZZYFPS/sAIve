@@ -60,8 +60,13 @@ function createWindow() {
   }
 }
 
-// --- IPC handler so the renderer can request the backend port ---
+// --- IPC handler so the renderer can Request the backend port ---
 ipcMain.handle('get-backend-port', () => backendPort);
+
+// --- IPC handler for renderer logs ---
+ipcMain.on('console-log', (event, message) => {
+  console.log(`[Renderer] ${message}`);
+});
 
 const startBackend = () => {
   return new Promise((resolve, reject) => {

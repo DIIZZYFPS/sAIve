@@ -15,6 +15,7 @@ type AIWorkerMessage =
 let generator: any = null;
 let currentModel: string | null = null;
 let currentRequestId: string | null = null;
+let isOpLoading = false;
 
 self.addEventListener("message", async (e: MessageEvent<AIWorkerMessage>) => {
     const { type } = e.data;
@@ -39,24 +40,39 @@ self.addEventListener("message", async (e: MessageEvent<AIWorkerMessage>) => {
     }
 });
 
+console.log("[AI Worker] Script loaded");
+
 async function loadModel({ model, dtype, device = "webgpu" }: { model: string; dtype: string; device?: string }) {
+    console.log(`[AI Worker] loadModel called for ${model}`);
+    if (isOpLoading) {
+        console.warn("[AI Worker] loadModel ignored (already loading)");
+        return;
+    }
     if (currentModel === model && generator) {
+        console.log("[AI Worker] Model already loaded");
         self.postMessage({ status: "ready", model });
         return;
     }
 
     try {
+        isOpLoading = true;
         self.postMessage({ status: "loading", model });
+        console.log("[AI Worker] Status set to loading");
 
         // Check for WebGPU support in worker
         if (device === "webgpu" && !(navigator as any).gpu) {
             throw new Error("WebGPU not supported in worker");
         }
+        console.log("[AI Worker] WebGPU check passed");
 
+        console.log("[AI Worker] Starting pipeline creation...");
         generator = await pipeline("text-generation", model, {
             device: device as any,
             dtype: dtype as any,
             progress_callback: (prog: any) => {
+                // Console log only on first progress to avoid spam
+                // if (prog.status === 'initiate') console.log("[AI Worker] Download initiated");
+
                 self.postMessage({
                     type: "progress",
                     data: {
@@ -66,11 +82,16 @@ async function loadModel({ model, dtype, device = "webgpu" }: { model: string; d
                 });
             },
         });
+        console.log("[AI Worker] Pipeline created successfully");
 
         currentModel = model;
         self.postMessage({ status: "ready", model });
     } catch (err: any) {
+        console.error("[AI Worker] Error in loadModel:", err);
         self.postMessage({ status: "error", error: err.message });
+    } finally {
+        isOpLoading = false;
+        console.log("[AI Worker] loadModel finished (lock released)");
     }
 }
 

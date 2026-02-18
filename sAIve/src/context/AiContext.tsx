@@ -38,67 +38,81 @@ export function AiProvider({ children }: { children: ReactNode }) {
     const generateResolveRef = useRef<((value: string) => void) | null>(null);
     const generateRejectRef = useRef<((reason?: any) => void) | null>(null);
     const currentRequestIdRef = useRef<string | null>(null);
+    const retryCountRef = useRef(0);
 
-    useEffect(() => {
-        // Initialize worker
-        if (!workerRef.current) {
-            workerRef.current = new Worker(new URL('../workers/ai.worker.ts', import.meta.url), { type: 'module' });
+    // Synchronous Lazy Initialization
+    // This ensures worker is ready *before* children mount and call loadModel
+    if (!workerRef.current) {
+        workerRef.current = new Worker(new URL('../workers/ai.worker.ts', import.meta.url), { type: 'module' });
 
-            workerRef.current.onmessage = (e) => {
-                const { status: workerStatus, type, data, output, error, requestId } = e.data;
+        workerRef.current.onmessage = (e) => {
+            const { status: workerStatus, type, data, output, error, requestId } = e.data;
 
-                // Handle status updates
-                if (workerStatus) {
-                    // Don't override main status if we are in specific states unless worker says so
-                    if (workerStatus === "loading") setStatus("loading");
-                    if (workerStatus === "generating") setStatus("generating");
-                    if (workerStatus === "ready") {
-                        setIsModelLoaded(true);
-                        setStatus("idle");
-                        setProgress(null);
-                        // Resolve loadModel promise
-                        if (loadModelResolveRef.current) {
-                            loadModelResolveRef.current();
-                            loadModelResolveRef.current = null;
-                            loadModelRejectRef.current = null;
-                        }
-                    }
-                    if (workerStatus === "error") {
-                        setStatus("error");
-                        toast.error(error || "AI Error");
-                        // Reject loadModel promise if waiting for it
-                        if (loadModelRejectRef.current) {
-                            loadModelRejectRef.current(new Error(error));
-                            loadModelRejectRef.current = null;
-                            loadModelResolveRef.current = null;
-                        }
-                        // Reject generate promise if waiting and matches requestId
-                        if (generateRejectRef.current && requestId === currentRequestIdRef.current) {
-                            generateRejectRef.current(new Error(error));
-                            generateRejectRef.current = null;
-                            generateResolveRef.current = null;
-                            currentRequestIdRef.current = null;
-                        }
+            // Handle status updates
+            if (workerStatus) {
+                // Don't override main status if we are in specific states unless worker says so
+                if (workerStatus === "loading") setStatus("loading");
+                if (workerStatus === "generating") setStatus("generating");
+                if (workerStatus === "ready") {
+                    setIsModelLoaded(true);
+                    setStatus("idle");
+                    setProgress(null);
+                    // Resolve loadModel promise
+                    if (loadModelResolveRef.current) {
+                        loadModelResolveRef.current();
+                        loadModelResolveRef.current = null;
+                        loadModelRejectRef.current = null;
                     }
                 }
-
-                if (type === "progress") {
-                    setProgress(data);
-                }
-
-                if (type === "complete") {
-                    // Only resolve if requestId matches
-                    if (generateResolveRef.current && requestId === currentRequestIdRef.current) {
-                        generateResolveRef.current(output);
-                        generateResolveRef.current = null;
+                if (workerStatus === "error") {
+                    setStatus("error");
+                    toast.error(error || "AI Error");
+                    // Reject loadModel promise if waiting for it
+                    if (loadModelRejectRef.current) {
+                        loadModelRejectRef.current(new Error(error));
+                        loadModelRejectRef.current = null;
+                        loadModelResolveRef.current = null;
+                    }
+                    // Reject generate promise if waiting and matches requestId
+                    if (generateRejectRef.current && requestId === currentRequestIdRef.current) {
+                        generateRejectRef.current(new Error(error));
                         generateRejectRef.current = null;
+                        generateResolveRef.current = null;
                         currentRequestIdRef.current = null;
                     }
-                    setStatus("idle");
                 }
-            };
-        }
+            }
 
+            if (type === "progress") {
+                setProgress(data);
+            }
+
+            if (type === "complete") {
+                // Only resolve if requestId matches
+                if (generateResolveRef.current && requestId === currentRequestIdRef.current) {
+                    generateResolveRef.current(output);
+                    generateResolveRef.current = null;
+                    generateRejectRef.current = null;
+                    currentRequestIdRef.current = null;
+                }
+                setStatus("idle");
+            }
+        };
+
+        workerRef.current.onerror = (err) => {
+            console.error("AI Worker Error:", err);
+            setStatus("error");
+            toast.error("AI Engine failed to start");
+            // Reject pending promises
+            if (loadModelRejectRef.current) {
+                loadModelRejectRef.current(new Error("Worker failed"));
+                loadModelRejectRef.current = null;
+            }
+        };
+    }
+
+    // Cleanup only
+    useEffect(() => {
         return () => {
             workerRef.current?.terminate();
             workerRef.current = null;
@@ -106,6 +120,8 @@ export function AiProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const loadModel = useCallback(async () => {
+        if (status === "loading") return; // Prevent concurrent loads
+
         const modelConfig = AI_MODELS.find((m) => m.id === aiModel) ?? AI_MODELS[0];
 
         return new Promise<void>((resolve, reject) => {
@@ -117,13 +133,58 @@ export function AiProvider({ children }: { children: ReactNode }) {
             loadModelResolveRef.current = resolve;
             loadModelRejectRef.current = reject;
 
+            // Set a timeout to fail if worker hangs silently
+            const timeoutId = setTimeout(() => {
+                if (loadModelRejectRef.current) {
+                    console.error("AI Worker timed out during load");
+
+                    // SMART RETRY LOGIC
+                    if (retryCountRef.current === 0) {
+                        retryCountRef.current++;
+                        const msg = `[AI Smart Retry] Initial load hung (>15s). Auto-retrying (Attempt ${retryCountRef.current + 1})...`;
+                        console.log(msg);
+                        if ((window as any).electron?.log) (window as any).electron.log(msg);
+
+                        // Clean up current attempt
+                        loadModelRejectRef.current = null;
+                        loadModelResolveRef.current = null;
+
+                        // Retry after short delay
+                        setTimeout(() => {
+                            loadModel().catch(e => console.error("Retry failed:", e));
+                        }, 1000);
+                        return;
+                    }
+
+                    setStatus("error");
+                    toast.error("AI Engine timed out. Check console.");
+                    loadModelRejectRef.current(new Error("Worker load timed out"));
+                    loadModelRejectRef.current = null;
+                    loadModelResolveRef.current = null;
+                }
+            }, 60000); // 60 second timeout for first attempt (Smart Retry)
+
+            // Hook into existing resolve to clear timeout
+            const originalResolve = loadModelResolveRef.current;
+            loadModelResolveRef.current = () => {
+                clearTimeout(timeoutId);
+                if (originalResolve) originalResolve();
+            };
+
+            // Hook into existing reject to clear timeout
+            const originalReject = loadModelRejectRef.current;
+            loadModelRejectRef.current = (reason) => {
+                clearTimeout(timeoutId);
+                if (originalReject) originalReject(reason);
+            };
+
             workerRef.current?.postMessage({
                 type: "load",
                 model: modelConfig.repo,
                 dtype: modelConfig.dtype
             });
         });
-    }, [aiModel]);
+    }, [aiModel, status]);
 
     const generate = useCallback(async (input: string | Message[], maxTokens = 200): Promise<string> => {
         if (!workerRef.current) throw new Error("Worker not initialized");

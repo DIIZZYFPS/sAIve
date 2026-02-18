@@ -287,9 +287,9 @@ const Settings = () => {
                             <CardTitle className="text-lg">About</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Version</span>
-                                <span className="text-sm font-mono">0.4.4</span>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Version</span>
+                                <span>0.4.5</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-muted-foreground">App</span>
