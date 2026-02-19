@@ -45,7 +45,7 @@ function createWindow() {
       nodeIntegration: false,
     },
     autoHideMenuBar: true,
-    icon: path.join(__dirname, '../dist/vite.svg'),
+    icon: app.isPackaged ? path.join(__dirname, '../dist/icon.png') : path.join(__dirname, '../public/icon.png'),
   });
 
   mainWindow.maximize();
