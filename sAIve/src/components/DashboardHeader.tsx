@@ -148,6 +148,11 @@ function DashboardHeader({ pageName }: { pageName: string }) {
         queryClient.invalidateQueries({ queryKey: ["asset"] });
         queryClient.invalidateQueries({ queryKey: ["assets"] });
         queryClient.invalidateQueries({ queryKey: ["categories"] });
+        queryClient.invalidateQueries({ queryKey: ["statsCategories"] });
+        queryClient.invalidateQueries({ queryKey: ["statsHistory"] });
+        queryClient.invalidateQueries({ queryKey: ["categoryHistory"] });
+        queryClient.invalidateQueries({ queryKey: ["dailySpending"] });
+        queryClient.invalidateQueries({ queryKey: ["userProfile"] });
       }),
       {
         loading: "Repeating transaction...",
@@ -173,6 +178,11 @@ function DashboardHeader({ pageName }: { pageName: string }) {
         queryClient.invalidateQueries({ queryKey: ["asset"] });
         queryClient.invalidateQueries({ queryKey: ["assets"] });
         queryClient.invalidateQueries({ queryKey: ["categories"] });
+        queryClient.invalidateQueries({ queryKey: ["statsCategories"] });
+        queryClient.invalidateQueries({ queryKey: ["statsHistory"] });
+        queryClient.invalidateQueries({ queryKey: ["categoryHistory"] });
+        queryClient.invalidateQueries({ queryKey: ["dailySpending"] });
+        queryClient.invalidateQueries({ queryKey: ["userProfile"] });
         setIsOpen(false);
       }),
       {

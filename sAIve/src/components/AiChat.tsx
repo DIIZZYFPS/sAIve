@@ -105,7 +105,7 @@ export default function AiChat({ trigger }: AiChatProps) {
     });
 
     const { data: categoryData } = useQuery({
-        queryKey: ["categories"],
+        queryKey: ["statsCategories"],
         queryFn: async () => {
             const response = await api.get("/stats/categories/1");
             return response.data;
