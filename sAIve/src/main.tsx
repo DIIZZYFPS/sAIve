@@ -14,7 +14,7 @@ const queryClient = new QueryClient();
 configureApi().then(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <ThemeProvider defaultMode="system" storageKeyMode="vite-ui-mode">
         <SettingsProvider>
           <QueryClientProvider client={queryClient}>
             <AiProvider>

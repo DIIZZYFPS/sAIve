@@ -192,7 +192,8 @@ export default function AiChat({ trigger }: AiChatProps) {
             // And keep only the last 10 messages to manage context window
             const history = messages.filter(m =>
                 !m.content.startsWith('Initializing') &&
-                !m.content.startsWith('✅ Model loaded')
+                !m.content.startsWith('✅ Model loaded') &&
+                !m.content.startsWith('Model loaded!')
             ).slice(-30);
 
             const promptMessages: Message[] = [
