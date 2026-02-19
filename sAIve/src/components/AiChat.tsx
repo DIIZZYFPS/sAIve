@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { useSettings } from "@/context/SettingsContext";
 import { useAi, type Message } from "@/context/AiContext";
+import { Loader } from "./Loader";
 
 
 
@@ -84,7 +85,7 @@ function buildFinancialContext(
 
 export default function AiChat({ trigger }: AiChatProps) {
     const [messages, setMessages] = useState<Message[]>([
-        { role: 'assistant', content: 'Initializing local AI... The model will download on first use (~300MB).' }
+        { role: 'assistant', content: 'Initializing local AI... The model will download on first use.' }
     ]);
     const [input, setInput] = useState('');
     const [isOpen, setIsOpen] = useState(false);
@@ -152,7 +153,7 @@ export default function AiChat({ trigger }: AiChatProps) {
     useEffect(() => {
         if (isModelLoaded && assetData && !hasSentBriefing.current && status === 'idle') {
             hasSentBriefing.current = true;
-            setMessages(prev => [...prev, { role: 'assistant', content: '✅ Model loaded! Preparing your financial briefing...' }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: 'Model loaded! Preparing your financial briefing...' }]);
             generateBriefing();
         }
     }, [isModelLoaded, assetData, status]);
@@ -191,7 +192,8 @@ export default function AiChat({ trigger }: AiChatProps) {
             // And keep only the last 10 messages to manage context window
             const history = messages.filter(m =>
                 !m.content.startsWith('Initializing') &&
-                !m.content.startsWith('✅ Model loaded')
+                !m.content.startsWith('✅ Model loaded') &&
+                !m.content.startsWith('Model loaded!')
             ).slice(-30);
 
             const promptMessages: Message[] = [
@@ -226,7 +228,7 @@ export default function AiChat({ trigger }: AiChatProps) {
                 {/* Progress overlay */}
                 {(progress || (status === 'loading' && !isModelLoaded)) && (
                     <div className="px-4 py-6 flex flex-col items-center gap-3 border-b">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <Loader size={50} processing={false} />
                         <p className="text-xs font-medium">
                             {progress ? "Downloading Model..." : "Initializing AI Engine..."}
                         </p>

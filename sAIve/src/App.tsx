@@ -11,8 +11,8 @@ import Settings from '@/pages/Settings';
 import NotFound from './pages/NotFount';
 
 function ThemedToaster() {
-  const { theme } = useTheme();
-  return <Toaster richColors position="bottom-right" theme={theme as "light" | "dark" | "system"} />;
+  const { mode } = useTheme();
+  return <Toaster richColors position="bottom-right" theme={mode as "light" | "dark" | "system"} />;
 }
 
 // App is now completely clean of data-passing logic

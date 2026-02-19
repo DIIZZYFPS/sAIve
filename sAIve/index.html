@@ -1,24 +1,31 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>sAIve</title>
-  </head>
-  <body>
-    <div id="root" data-vaul-drawer-wrapper="true">
-      <div class="preloader"></div>
-      </div>
-    <script type="module" src="/src/main.tsx"></script>
-    <script>
-      // Replace 'theme' with your localStorage key if different
-      const theme = localStorage.getItem('theme');
-      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    </script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sAIve</title>
+</head>
+
+<body>
+  <div id="root" data-vaul-drawer-wrapper="true">
+    <div class="preloader"></div>
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+  <script>
+    const mode = localStorage.getItem('vite-ui-mode');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (mode === 'dark' || (!mode && prefersDark) || (mode === 'system' && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    const colorTheme = localStorage.getItem('vite-ui-color-theme');
+    if (colorTheme) {
+      document.documentElement.classList.add(colorTheme);
+    }
+  </script>
+</body>
+
 </html>

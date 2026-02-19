@@ -32,7 +32,8 @@ interface ChartProps {
 }
 
 function Chart({ month, year }: ChartProps) {
-  const { theme } = useTheme();
+  const { mode } = useTheme();
+  const isDark = mode === "dark" || (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
 
   const { data: sankeyData, isLoading } = useQuery<SankeyData>({
     queryKey: ['sankeyData', month, year],
@@ -50,7 +51,7 @@ function Chart({ month, year }: ChartProps) {
     root.setThemes([
       am5themes_Animated.new(root),
       am5themes_Responsive.new(root),
-      theme === "dark" ? am5themes_Dark.new(root) : am5themes_Frozen.new(root)
+      isDark ? am5themes_Dark.new(root) : am5themes_Frozen.new(root)
     ]);
 
     // Add padding so labels aren't clipped at edges
@@ -92,7 +93,7 @@ function Chart({ month, year }: ChartProps) {
 
     // Configure node labels
     series.nodes.labels.template.setAll({
-      fill: theme === "dark" ? am5.color(0xffffff) : am5.color(0x000000),
+      fill: isDark ? am5.color(0xffffff) : am5.color(0x000000),
       fontSize: 14,
       fontWeight: "500",
       paddingLeft: 10,
@@ -123,7 +124,7 @@ function Chart({ month, year }: ChartProps) {
     return () => {
       root.dispose();
     };
-  }, [sankeyData, isLoading, theme]);
+  }, [sankeyData, isLoading, mode]);
 
 
   if (isLoading) {

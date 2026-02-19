@@ -15330,7 +15330,7 @@ function createWindow() {
       nodeIntegration: false
     },
     autoHideMenuBar: true,
-    icon: require$$1$1.join(__dirname, "../dist/vite.svg")
+    icon: app.isPackaged ? require$$1$1.join(__dirname, "../dist/icon.png") : require$$1$1.join(__dirname, "../public/icon.png")
   });
   mainWindow.maximize();
   const devUrl = "http://localhost:5173/";

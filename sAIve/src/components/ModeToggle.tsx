@@ -10,7 +10,7 @@ import {
 import { useTheme } from "@/components/ThemeProvider"
 
 export function ModeToggle() {
-  const { setTheme } = useTheme()
+  const { setMode } = useTheme()
 
   return (
     <DropdownMenu>
@@ -22,13 +22,13 @@ export function ModeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
+        <DropdownMenuItem onClick={() => setMode("light")}>
           Light
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
+        <DropdownMenuItem onClick={() => setMode("dark")}>
           Dark
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
+        <DropdownMenuItem onClick={() => setMode("system")}>
           System
         </DropdownMenuItem>
       </DropdownMenuContent>

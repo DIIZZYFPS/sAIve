@@ -12,7 +12,7 @@ import { useState } from "react";
 import { Sun, Moon, Monitor, User, Download, Save, Coins, Bot } from "lucide-react";
 
 const Settings = () => {
-    const { theme, setTheme } = useTheme();
+    const { mode, setMode, colorTheme, setColorTheme } = useTheme();
     const { currency, setCurrency, aiEnabled, setAiEnabled, aiModel, setAiModel, formatCurrency } = useSettings();
     const queryClient = useQueryClient();
 
@@ -73,10 +73,16 @@ const Settings = () => {
         }
     };
 
-    const themeOptions = [
+    const modeOptions = [
         { value: "light" as const, label: "Light", icon: Sun },
         { value: "dark" as const, label: "Dark", icon: Moon },
         { value: "system" as const, label: "System", icon: Monitor },
+    ];
+
+    const colorThemeOptions = [
+        { value: "theme-dynamic" as const, label: "Dynamic (Default)", colorClass: "bg-red-500" },
+        { value: "theme-mint" as const, label: "Cyber Mint", colorClass: "bg-teal-500" },
+        { value: "theme-emerald" as const, label: "Deep Emerald", colorClass: "bg-emerald-500" },
     ];
 
     return (
@@ -90,25 +96,50 @@ const Settings = () => {
                         <CardHeader>
                             <CardTitle className="text-lg">Appearance</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                                Choose how sAIve looks to you.
-                            </p>
-                            <div className="grid grid-cols-3 gap-3">
-                                {themeOptions.map(({ value, label, icon: Icon }) => (
-                                    <button
-                                        key={value}
-                                        onClick={() => setTheme(value)}
-                                        className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer ${theme === value
-                                            ? "border-primary bg-primary/10"
-                                            : "border-border hover:border-primary/40 hover:bg-muted/50"
-                                            }`}
-                                    >
-                                        <Icon className="h-6 w-6" />
-                                        <span className="text-sm font-medium">{label}</span>
-                                    </button>
-                                ))}
+                        <CardContent className="space-y-6">
+
+                            {/* Mode Selection */}
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground font-medium">Display Mode</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {modeOptions.map(({ value, label, icon: Icon }) => (
+                                        <button
+                                            key={value}
+                                            onClick={() => setMode(value)}
+                                            className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer ${mode === value
+                                                ? "border-primary bg-primary/10"
+                                                : "border-border hover:border-primary/40 hover:bg-muted/50"
+                                                }`}
+                                        >
+                                            <Icon className="h-6 w-6" />
+                                            <span className="text-sm font-medium">{label}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
+
+                            <Separator />
+
+                            {/* Color Theme Selection */}
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground font-medium">Color Theme</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {colorThemeOptions.map(({ value, label, colorClass }) => (
+                                        <button
+                                            key={value}
+                                            onClick={() => setColorTheme(value)}
+                                            className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer ${colorTheme === value
+                                                ? "border-primary bg-primary/10"
+                                                : "border-border hover:border-primary/40 hover:bg-muted/50"
+                                                }`}
+                                        >
+                                            <div className={`h-6 w-6 rounded-full ${colorClass}`} />
+                                            <span className="text-sm font-medium">{label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                         </CardContent>
                     </Card>
 

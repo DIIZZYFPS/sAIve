@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import App from './App';
-import AppLoader from './components/appLoader';
+import { Loader } from './components/Loader';
 import { useAi } from '@/context/AiContext';
 import { useSettings } from '@/context/SettingsContext';
 import { SetupScreen } from '@/components/SetupScreen';
@@ -53,7 +53,7 @@ const MainApp: React.FC = () => {
   }, [aiEnabled, loadModel]);
 
   if (isAppLoading) {
-    return <AppLoader />;
+    return <Loader className="h-screen w-screen" size={120} />;
   }
 
   return <App />;
