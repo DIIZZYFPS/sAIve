@@ -15,53 +15,72 @@ export const Loader = ({ className, size = 100, processing = true }: LoaderProps
                 width={size}
                 height={size}
             >
-                <g transform="translate(10, 10)">
+                <style>{`
+                    .coal-outer-shell {
+                        transform-origin: 50% 50%;
+                        animation: coalDecoupleSpin 3.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+                    }
+                    .coal-inner-track {
+                        transform-origin: 50% 50%;
+                        animation: coalSpinReverse 6s linear infinite;
+                    }
+                    .coal-node {
+                        animation: coalPulse 2s ease-in-out infinite;
+                    }
+                    .coal-data-flow {
+                        stroke-dasharray: 20 150;
+                        animation: coalFlow 1.5s linear infinite;
+                    }
 
-                    {/* Ultra-thin static tracks */}
-                    <path d="M 40 5 A 35 35 0 0 1 73 50" fill="none" stroke="var(--logo-ring-1)" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
-                    <path d="M 27 72 A 35 35 0 0 1 5 40" fill="none" stroke="var(--logo-ring-2)" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
+                    @keyframes coalDecoupleSpin {
+                        0% { transform: scale(1) rotate(-110deg); }
+                        15% { transform: scale(1.22) rotate(-110deg); }
+                        45% { transform: scale(1.22) rotate(130deg); }
+                        60% { transform: scale(1) rotate(250deg); }
+                        100% { transform: scale(1) rotate(250deg); }
+                    }
 
-                    <path id="triangleTrack" d="M40 20 L55 45 L25 45 Z" fill="none" stroke="var(--logo-node-2)" strokeWidth="1.5" strokeLinejoin="round" opacity="0.2" />
+                    @keyframes coalSpinReverse {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(-360deg); }
+                    }
 
-                    {/* Pulsing Outer Arcs (Slower, alternating) */}
-                    <path d="M 40 5 A 35 35 0 0 1 73 50" fill="none" stroke="var(--logo-ring-1)" strokeWidth="1.5" strokeLinecap="round" opacity="0.1">
-                        <animate attributeName="opacity" values="0.1;0.8;0.1" dur="4s" begin="0s" repeatCount="indefinite" />
-                    </path>
-                    <path d="M 27 72 A 35 35 0 0 1 5 40" fill="none" stroke="var(--logo-ring-2)" strokeWidth="1.5" strokeLinecap="round" opacity="0.1">
-                        <animate attributeName="opacity" values="0.1;0.8;0.1" dur="4s" begin="2s" repeatCount="indefinite" />
-                    </path>
+                    @keyframes coalPulse {
+                        0%, 100% { opacity: 0.5; }
+                        50% { opacity: 1; }
+                    }
 
-                    {/* Data packet flowing around the inner triangle */}
-                    <path d="M40 20 L55 45 L25 45 Z" fill="none" stroke="var(--background)" strokeWidth="2" strokeLinejoin="round"
-                        strokeDasharray="10 120" strokeDashoffset="130">
-                        <animate attributeName="stroke-dashoffset" values="130;0" dur="1.5s" begin="0s" repeatCount="indefinite" />
-                    </path>
-                    <path d="M40 20 L55 45 L25 45 Z" fill="none" stroke="var(--foreground)" strokeWidth="1" strokeLinejoin="round"
-                        strokeDasharray="10 120" strokeDashoffset="130" opacity="0.5">
-                        <animate attributeName="stroke-dashoffset" values="130;0" dur="1.5s" begin="0s" repeatCount="indefinite" />
-                    </path>
+                    @keyframes coalFlow {
+                        from { stroke-dashoffset: 170; }
+                        to { stroke-dashoffset: 0; }
+                    }
+                `}</style>
 
-                    {/* Precision "nodes" - Pulsing subtly */}
-                    <circle cx="40" cy="20" r="3" fill="var(--logo-node-1)">
-                        <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="0s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="40" cy="20" r="1.5" fill="var(--background)" />
+                {/* Outer Coin Shell - Coalescence mechanical spin */}
+                <circle className="coal-outer-shell" cx="50" cy="50" r="34" fill="none" stroke="var(--logo-ring-1)" strokeWidth="4" strokeDasharray="56 15.209" strokeLinecap="round" />
 
-                    <circle cx="55" cy="45" r="3" fill="var(--logo-node-2)">
-                        <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="0.66s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="25" cy="45" r="3" fill="var(--logo-node-3)">
-                        <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="1.33s" repeatCount="indefinite" />
-                    </circle>
+                {/* Subtle Inner tech track */}
+                <circle className="coal-inner-track" cx="50" cy="50" r="28" fill="none" stroke="var(--logo-ring-2)" strokeWidth="1" strokeDasharray="2 6" opacity="0.4" />
 
-                    {/* Center AI "Core" - Spinning crosshair indicator */}
-                    <g transform="translate(40, 36.67)">
-                        <g>
-                            <animateTransform attributeName="transform" type="rotate" values="0 0 0; 90 0 0" dur="1.5s" calcMode="discrete" repeatCount="indefinite" />
-                            <path d="M-2 -2 L2 -2 M0 -4 L0 0" fill="none" stroke="var(--logo-core)" strokeWidth="1" />
-                        </g>
+                {/* Triangle Geometry - Faint static base */}
+                <path d="M 50 25 L 71.65 62.5 L 28.35 62.5 Z" fill="none" stroke="var(--logo-node-2)" strokeWidth="1.5" strokeLinejoin="round" opacity="0.2" />
+
+                {/* Data Flow around the triangle */}
+                <path className="coal-data-flow" d="M 50 25 L 71.65 62.5 L 28.35 62.5 Z" fill="none" stroke="var(--foreground)" strokeWidth="2" strokeLinejoin="round" />
+
+                {/* Precision Nodes */}
+                <circle cx="50" cy="25" r="4.5" fill="var(--logo-node-1)" className="coal-node" style={{ animationDelay: "0s" }} />
+                <circle cx="50" cy="25" r="2.5" fill="var(--background)" />
+
+                <circle cx="71.65" cy="62.5" r="4.5" fill="var(--logo-node-2)" className="coal-node" style={{ animationDelay: "0.3s" }} />
+                <circle cx="28.35" cy="62.5" r="4.5" fill="var(--logo-node-3)" className="coal-node" style={{ animationDelay: "0.6s" }} />
+
+                {/* Center Core - Spinning crosshair */}
+                <g transform="translate(50, 50)">
+                    <g>
+                        <animateTransform attributeName="transform" type="rotate" values="0 0 0; 90 0 0" dur="1.5s" calcMode="discrete" repeatCount="indefinite" />
+                        <path d="M-2 -2 L2 -2 M0 -4 L0 0" fill="none" stroke="var(--logo-core)" strokeWidth="1" />
                     </g>
-
                 </g>
             </svg>
             {processing && (

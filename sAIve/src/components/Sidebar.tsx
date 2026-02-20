@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import AiChat from '@/components/AiChat';
-import { Logo } from '@/components/Logo';
+import { MiniLoader } from '@/components/MiniLoader';
 import { useSettings } from '@/context/SettingsContext';
 import {
   ChevronLeft,
@@ -69,7 +69,7 @@ const Sidebar = () => {
       <div className="flex items-center justify-between p-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <Logo size={50} />
+            <MiniLoader size={36} />
             <h2 className="text-xl font-bold tracking-tight">
               s<span className="text-primary">AI</span>ve
             </h2>
