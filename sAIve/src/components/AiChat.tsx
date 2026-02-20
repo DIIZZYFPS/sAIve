@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { useSettings } from "@/context/SettingsContext";
 import { useAi, type Message } from "@/context/AiContext";
-import { Loader } from "./Loader";
+import { MiniLoader } from "./MiniLoader";
 
 
 
@@ -228,7 +228,7 @@ export default function AiChat({ trigger }: AiChatProps) {
                 {/* Progress overlay */}
                 {(progress || (status === 'loading' && !isModelLoaded)) && (
                     <div className="px-4 py-6 flex flex-col items-center gap-3 border-b">
-                        <Loader size={50} processing={false} />
+                        <MiniLoader size={40} />
                         <p className="text-xs font-medium">
                             {progress ? "Downloading Model..." : "Initializing AI Engine..."}
                         </p>
