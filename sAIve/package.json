@@ -1,7 +1,7 @@
 {
   "name": "saive",
   "private": true,
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "An AI-powered budgeting application.",
   "author": "DIIZZY",
   "repository": {
@@ -113,13 +113,16 @@
       "output": "release"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "assets/icon.png"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/icon.ico"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "icon": "assets/icon.png"
     }
   }
 }
