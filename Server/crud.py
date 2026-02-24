@@ -242,3 +242,178 @@ def delete_transaction(transaction_id: int):
 
     conn.commit()
     conn.close()
+
+# --- Recurring Transactions ---
+
+from models import RecurringTransaction, RecurringTransactionCreate, Notification, NotificationCreate
+
+def create_recurring_transaction(rt: RecurringTransactionCreate):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO recurring_transactions 
+        (user_id, amount, category, recipient, type, interval, start_date, next_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        rt.user_id,
+        rt.amount,
+        rt.category,
+        rt.recipient,
+        rt.type,
+        rt.interval,
+        rt.start_date,
+        rt.start_date # Initially, next_date is the start_date
+    ))
+
+    conn.commit()
+    conn.close()
+
+def get_all_recurring_transactions(user_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM recurring_transactions
+        WHERE user_id = ?
+        ORDER BY next_date ASC
+    ''', (user_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    rts = []
+    for row in rows:
+        rts.append(RecurringTransaction(
+            id=row['id'],
+            user_id=row['user_id'],
+            amount=row['amount'],
+            category=row['category'],
+            recipient=row['recipient'],
+            type=row['type'],
+            interval=row['interval'],
+            start_date=row['start_date'],
+            next_date=row['next_date']
+        ))
+    
+    return rts
+
+def update_recurring_transaction_next_date(rt_id: int, next_date: str):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE recurring_transactions
+        SET next_date = ?
+        WHERE id = ?
+    ''', (next_date, rt_id))
+
+    conn.commit()
+    conn.close()
+
+def update_recurring_transaction(rt_id: int, rt: RecurringTransactionCreate):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE recurring_transactions
+        SET amount = ?, category = ?, recipient = ?, type = ?, interval = ?
+        WHERE id = ?
+    ''', (rt.amount, rt.category, rt.recipient, rt.type, rt.interval, rt_id))
+
+    conn.commit()
+    conn.close()
+
+def delete_recurring_transaction(rt_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        DELETE FROM recurring_transactions WHERE id = ?
+    ''', (rt_id,))
+
+    conn.commit()
+    conn.close()
+
+# --- Notifications ---
+
+def create_notification(notification: NotificationCreate):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO notifications 
+        (user_id, title, message, date, is_read, type)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (
+        notification.user_id,
+        notification.title,
+        notification.message,
+        notification.date,
+        notification.is_read,
+        notification.type
+    ))
+
+    conn.commit()
+    conn.close()
+
+def get_user_notifications(user_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM notifications 
+        WHERE user_id = ?
+        ORDER BY date DESC
+        LIMIT 50
+    ''', (user_id,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+
+    notifications = []
+    for row in rows:
+        notifications.append(Notification(
+            id=row['id'],
+            user_id=row['user_id'],
+            title=row['title'],
+            message=row['message'],
+            date=row['date'],
+            is_read=row['is_read'],
+            type=row['type']
+        ))
+    
+    return notifications
+
+def mark_notification_read(notification_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE notifications SET is_read = 1 WHERE id = ?
+    ''', (notification_id,))
+
+    conn.commit()
+    conn.close()
+
+def mark_all_notifications_read(user_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE notifications SET is_read = 1 WHERE user_id = ?
+    ''', (user_id,))
+
+    conn.commit()
+    conn.close()
+
+def delete_notification(notification_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        DELETE FROM notifications WHERE id = ?
+    ''', (notification_id,))
+
+    conn.commit()
+    conn.close()

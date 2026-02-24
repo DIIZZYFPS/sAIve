@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 class User(BaseModel):
@@ -48,3 +48,46 @@ class TransactionCreate(BaseModel):
     amount: float
     category: str
     type: TransactionType
+
+class RecurringInterval(str, Enum):
+    daily = "daily"
+    weekly = "weekly"
+    monthly = "monthly"
+    yearly = "yearly"
+
+class RecurringTransaction(BaseModel):
+    id: int
+    user_id: int
+    recipient: str
+    amount: float
+    category: str
+    type: TransactionType
+    interval: RecurringInterval
+    start_date: date
+    next_date: date
+
+class RecurringTransactionCreate(BaseModel):
+    user_id: int
+    recipient: str
+    amount: float
+    category: str
+    type: TransactionType
+    interval: RecurringInterval
+    start_date: date
+
+class Notification(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    message: str
+    date: datetime
+    is_read: bool
+    type: str
+
+class NotificationCreate(BaseModel):
+    user_id: int
+    title: str
+    message: str
+    date: datetime
+    is_read: bool = False
+    type: str

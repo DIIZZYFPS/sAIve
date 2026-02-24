@@ -21,14 +21,6 @@ export interface AiModelInfo {
 
 export const AI_MODELS: AiModelInfo[] = [
     {
-        id: "llama-1b",
-        label: "Llama 3.2 1B",
-        description: "Smart generalist. Huge context (128k).",
-        repo: "onnx-community/Llama-3.2-1B-Instruct-ONNX",
-        size: "~1.2 GB",
-        dtype: "q4",
-    },
-    {
         id: "lfm2-1b",
         label: "LFM2 1.2B",
         description: "Best reasoning & creativity in 1B class. By Liquid AI. Recommended.",
@@ -36,6 +28,14 @@ export const AI_MODELS: AiModelInfo[] = [
         size: "~800 MB",
         dtype: "q4",
         recommended: true,
+    },
+    {
+        id: "llama-1b",
+        label: "Llama 3.2 1B",
+        description: "Smart generalist. Huge context (128k).",
+        repo: "onnx-community/Llama-3.2-1B-Instruct-ONNX",
+        size: "~1.2 GB",
+        dtype: "q4",
     },
     {
         id: "gemma-1b",
@@ -75,6 +75,8 @@ interface SettingsContextType {
     setAiModel: (model: AiModelId) => void;
     hasCompletedSetup: boolean;
     setHasCompletedSetup: (completed: boolean) => void;
+    baseMonthlyIncome: number;
+    setBaseMonthlyIncome: (income: number) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -86,6 +88,7 @@ interface StoredSettings {
     aiEnabled: boolean;
     aiModel: AiModelId;
     hasCompletedSetup: boolean;
+    baseMonthlyIncome: number;
 }
 
 function loadSettings(): StoredSettings {
@@ -98,12 +101,13 @@ function loadSettings(): StoredSettings {
                 aiEnabled: parsed.aiEnabled ?? true,
                 aiModel: parsed.aiModel ?? "llama-1b",
                 hasCompletedSetup: parsed.hasCompletedSetup ?? false,
+                baseMonthlyIncome: parsed.baseMonthlyIncome ?? 0,
             };
         }
     } catch {
         // ignore
     }
-    return { currency: "USD", aiEnabled: true, aiModel: "llama-1b", hasCompletedSetup: false };
+    return { currency: "USD", aiEnabled: true, aiModel: "llama-1b", hasCompletedSetup: false, baseMonthlyIncome: 0 };
 }
 
 function saveSettings(settings: StoredSettings) {
@@ -116,17 +120,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const [aiEnabled, setStateAiEnabled] = useState<boolean>(() => initialSettings.aiEnabled);
     const [aiModel, setStateAiModel] = useState<AiModelId>(() => initialSettings.aiModel);
     const [hasCompletedSetup, setStateHasCompletedSetup] = useState<boolean>(() => initialSettings.hasCompletedSetup);
+    const [baseMonthlyIncome, setStateBaseMonthlyIncome] = useState<number>(() => initialSettings.baseMonthlyIncome);
 
     const currencyInfo = CURRENCIES.find((c) => c.code === currency) ?? CURRENCIES[0];
 
     useEffect(() => {
-        saveSettings({ currency, aiEnabled, aiModel, hasCompletedSetup });
-    }, [currency, aiEnabled, aiModel, hasCompletedSetup]);
+        saveSettings({ currency, aiEnabled, aiModel, hasCompletedSetup, baseMonthlyIncome });
+    }, [currency, aiEnabled, aiModel, hasCompletedSetup, baseMonthlyIncome]);
 
     const setCurrency = (code: CurrencyCode) => setStateCurrency(code);
     const setAiEnabled = (enabled: boolean) => setStateAiEnabled(enabled);
     const setAiModel = (model: AiModelId) => setStateAiModel(model);
     const setHasCompletedSetup = (completed: boolean) => setStateHasCompletedSetup(completed);
+    const setBaseMonthlyIncome = (income: number) => setStateBaseMonthlyIncome(income);
 
     const formatCurrency = (amount: number): string => {
         return `${currencyInfo.symbol}${amount.toLocaleString()}`;
@@ -145,6 +151,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 setAiModel,
                 hasCompletedSetup,
                 setHasCompletedSetup,
+                baseMonthlyIncome,
+                setBaseMonthlyIncome,
             }}
         >
             {children}

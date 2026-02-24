@@ -52,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
 
 import { Separator } from '@/components/ui/separator';
@@ -63,7 +64,7 @@ import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 import api from '@/lib/api';
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useSettings } from "@/context/SettingsContext";
 import { useAi } from "@/context/AiContext";
 
@@ -79,6 +80,8 @@ const formSchema = z.object({
   type: z.enum(["income", "expense"], {
     errorMap: () => ({ message: "Type is required" }),
   }),
+  isRecurring: z.boolean(),
+  interval: z.enum(["daily", "weekly", "monthly", "yearly"]).optional(),
 });
 
 function DashboardHeader({ pageName }: { pageName: string }) {
@@ -116,6 +119,29 @@ function DashboardHeader({ pageName }: { pageName: string }) {
     },
   });
 
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const response = await api.get("/notifications/1");
+      return response.data;
+    },
+  });
+
+  const markNotificationRead = useMutation({
+    mutationFn: (id: number) => api.put(`/notifications/${id}/read`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
+  });
+
+  const markAllNotificationsRead = useMutation({
+    mutationFn: (userId: number) => api.put(`/notifications/user/${userId}/read_all`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("All notifications marked as read");
+    }
+  });
+
   const userName = userProfile?.name || "User";
   const userInitial = userName.charAt(0).toUpperCase();
   const asset = currentAsset?.asset;
@@ -123,6 +149,8 @@ function DashboardHeader({ pageName }: { pageName: string }) {
   const expense = asset?.TExpense ?? 0;
   const savings = asset?.TSavings ?? 0;
   const savingsRate = income > 0 ? (savings / income) * 100 : 0;
+
+  const unreadNotifications = notifications.filter((n: any) => !n.is_read);
 
   const healthBadge = savingsRate >= 20
     ? { label: "On Track", color: "bg-emerald-500/20 text-emerald-400", dot: "bg-emerald-400" }
@@ -162,32 +190,35 @@ function DashboardHeader({ pageName }: { pageName: string }) {
     );
   };
   const handleAddTransaction = (values: any) => {
-    const payload = {
+    // Determine target endpoint and payload based on recurring toggle
+    const endpoint = values.isRecurring ? "/recurring_transactions/" : "/transactions/";
+    const payload: any = {
       user_id: 1,
       recipient: values.title,
-      date: values.date ? values.date.toISOString().slice(0, 10) : undefined,
-      amount: values.amount,
       category: values.category,
       type: values.type,
+      amount: values.amount,
     };
 
-    // Call the API to add the transaction
+    if (values.isRecurring) {
+      payload.interval = values.interval || "monthly";
+      payload.start_date = values.date ? format(values.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+    } else {
+      payload.date = values.date ? format(values.date, 'yyyy-MM-dd') : undefined;
+    }
+
+    console.log("PAYLOAD START DATE:", payload.start_date);
+
+    // Call the API
     toast.promise(
-      api.post("/transactions/", payload).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["transactions"] });
-        queryClient.invalidateQueries({ queryKey: ["asset"] });
-        queryClient.invalidateQueries({ queryKey: ["assets"] });
-        queryClient.invalidateQueries({ queryKey: ["categories"] });
-        queryClient.invalidateQueries({ queryKey: ["statsCategories"] });
-        queryClient.invalidateQueries({ queryKey: ["statsHistory"] });
-        queryClient.invalidateQueries({ queryKey: ["categoryHistory"] });
-        queryClient.invalidateQueries({ queryKey: ["dailySpending"] });
-        queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+      api.post(endpoint, payload).then(() => {
+        queryClient.invalidateQueries(); // invalidate all to be safe, especially if recurring adds a new type
         setIsOpen(false);
+        form.reset();
       }),
       {
-        loading: "Adding transaction...",
-        success: "Transaction added successfully",
+        loading: values.isRecurring ? "Creating recurring template..." : "Adding transaction...",
+        success: values.isRecurring ? "Subscription activated" : "Transaction added successfully",
         error: (err) => {
           if (err.response) {
             return err.response.data.message;
@@ -208,8 +239,12 @@ function DashboardHeader({ pageName }: { pageName: string }) {
       date: new Date(),
       category: "Other",
       type: "income",
+      isRecurring: false,
+      interval: "monthly",
     },
   });
+
+  const isRecurring = form.watch("isRecurring");
 
   // Watch title field and auto-suggest category via AI
   const titleValue = form.watch("title");
@@ -262,10 +297,69 @@ function DashboardHeader({ pageName }: { pageName: string }) {
           <ModeToggle />
         </div>
 
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5" />
+              {unreadNotifications.length > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background animate-pulse"></span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 p-0 rounded-xl overflow-hidden glass-card border-border/50">
+            <div className="bg-muted/30 px-4 py-3 border-b border-border/30 flex justify-between items-center">
+              <span className="font-semibold text-sm">Notifications</span>
+              <div className="flex items-center gap-2">
+                {unreadNotifications.length > 0 && (
+                  <button
+                    onClick={() => markAllNotificationsRead.mutate(1)}
+                    disabled={markAllNotificationsRead.isPending}
+                    className="text-[10px] text-primary hover:underline font-medium transition-colors disabled:opacity-50"
+                  >
+                    Mark all as read
+                  </button>
+                )}
+                {unreadNotifications.length > 0 && (
+                  <span className="bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full font-medium">
+                    {unreadNotifications.length} New
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground text-sm flex flex-col items-center">
+                  <Bell className="h-8 w-8 mb-2 opacity-20" />
+                  No new notifications
+                </div>
+              ) : (
+                notifications.map((notif: any) => (
+                  <div
+                    key={notif.id}
+                    className={`px-4 py-3 border-b border-border/20 last:border-b-0 cursor-default transition-colors ${notif.is_read ? 'opacity-60' : 'bg-primary/5 hover:bg-primary/10'}`}
+                    onClick={() => {
+                      if (!notif.is_read) {
+                        markNotificationRead.mutate(notif.id);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <span className={`text-sm font-semibold ${notif.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {notif.title}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                        {format(new Date(notif.date), "MMM d, h:mm a")}
+                      </span>
+                    </div>
+                    <p className={`text-xs ${notif.is_read ? 'text-muted-foreground' : 'text-muted-foreground/90'}`}>
+                      {notif.message}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -458,6 +552,58 @@ function DashboardHeader({ pageName }: { pageName: string }) {
                         />
                         <Separator className='my-4' />
                       </div>
+
+                      {/* RECURRING TOGGLE */}
+                      <div className="col-span-2 flex flex-col space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="isRecurring"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background/50">
+                              <div className="space-y-0.5">
+                                <FormLabel>Make target recurring</FormLabel>
+                                <p className="text-[10px] text-muted-foreground mr-4">
+                                  Auto-add this transaction on the selected interval.
+                                </p>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        {isRecurring && (
+                          <div className="animate-in fade-in slide-in-from-top-2">
+                            <FormField
+                              control={form.control}
+                              name="interval"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Interval</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select interval" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="daily">Daily</SelectItem>
+                                      <SelectItem value="weekly">Weekly</SelectItem>
+                                      <SelectItem value="monthly">Monthly</SelectItem>
+                                      <SelectItem value="yearly">Yearly</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        )}
+                        <Separator className='my-4' />
+                      </div>
+
                       <div>
                         <FormField
                           control={form.control}

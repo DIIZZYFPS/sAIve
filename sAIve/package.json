@@ -1,7 +1,7 @@
 {
   "name": "saive",
   "private": true,
-  "version": "0.4.11",
+  "version": "0.5.0",
   "description": "An AI-powered budgeting application.",
   "author": "DIIZZY",
   "repository": {
@@ -46,6 +46,7 @@
     "clsx": "^2.1.1",
     "electron-updater": "^6.7.3",
     "lucide-react": "^0.511.0",
+    "radix-ui": "^1.4.3",
     "react-day-picker": "^8.10.1",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.56.4",
