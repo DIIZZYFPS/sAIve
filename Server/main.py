@@ -549,6 +549,11 @@ def read_notification(notification_id: int):
     crud.mark_notification_read(notification_id)
     return {"detail": "Notification marked read"}
 
+@app.put("/notifications/user/{user_id}/read_all")
+def read_all_notifications(user_id: int):
+    crud.mark_all_notifications_read(user_id)
+    return {"detail": "All notifications marked read"}
+
 @app.delete("/notifications/{notification_id}")
 def delete_notification(notification_id: int):
     crud.delete_notification(notification_id)

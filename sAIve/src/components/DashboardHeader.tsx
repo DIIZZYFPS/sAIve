@@ -64,7 +64,7 @@ import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 import api from '@/lib/api';
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useSettings } from "@/context/SettingsContext";
 import { useAi } from "@/context/AiContext";
 
@@ -119,6 +119,29 @@ function DashboardHeader({ pageName }: { pageName: string }) {
     },
   });
 
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const response = await api.get("/notifications/1");
+      return response.data;
+    },
+  });
+
+  const markNotificationRead = useMutation({
+    mutationFn: (id: number) => api.put(`/notifications/${id}/read`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
+  });
+
+  const markAllNotificationsRead = useMutation({
+    mutationFn: (userId: number) => api.put(`/notifications/user/${userId}/read_all`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("All notifications marked as read");
+    }
+  });
+
   const userName = userProfile?.name || "User";
   const userInitial = userName.charAt(0).toUpperCase();
   const asset = currentAsset?.asset;
@@ -126,6 +149,8 @@ function DashboardHeader({ pageName }: { pageName: string }) {
   const expense = asset?.TExpense ?? 0;
   const savings = asset?.TSavings ?? 0;
   const savingsRate = income > 0 ? (savings / income) * 100 : 0;
+
+  const unreadNotifications = notifications.filter((n: any) => !n.is_read);
 
   const healthBadge = savingsRate >= 20
     ? { label: "On Track", color: "bg-emerald-500/20 text-emerald-400", dot: "bg-emerald-400" }
@@ -272,10 +297,69 @@ function DashboardHeader({ pageName }: { pageName: string }) {
           <ModeToggle />
         </div>
 
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5" />
+              {unreadNotifications.length > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background animate-pulse"></span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 p-0 rounded-xl overflow-hidden glass-card border-border/50">
+            <div className="bg-muted/30 px-4 py-3 border-b border-border/30 flex justify-between items-center">
+              <span className="font-semibold text-sm">Notifications</span>
+              <div className="flex items-center gap-2">
+                {unreadNotifications.length > 0 && (
+                  <button
+                    onClick={() => markAllNotificationsRead.mutate(1)}
+                    disabled={markAllNotificationsRead.isPending}
+                    className="text-[10px] text-primary hover:underline font-medium transition-colors disabled:opacity-50"
+                  >
+                    Mark all as read
+                  </button>
+                )}
+                {unreadNotifications.length > 0 && (
+                  <span className="bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full font-medium">
+                    {unreadNotifications.length} New
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground text-sm flex flex-col items-center">
+                  <Bell className="h-8 w-8 mb-2 opacity-20" />
+                  No new notifications
+                </div>
+              ) : (
+                notifications.map((notif: any) => (
+                  <div
+                    key={notif.id}
+                    className={`px-4 py-3 border-b border-border/20 last:border-b-0 cursor-default transition-colors ${notif.is_read ? 'opacity-60' : 'bg-primary/5 hover:bg-primary/10'}`}
+                    onClick={() => {
+                      if (!notif.is_read) {
+                        markNotificationRead.mutate(notif.id);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <span className={`text-sm font-semibold ${notif.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {notif.title}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                        {format(new Date(notif.date), "MMM d, h:mm a")}
+                      </span>
+                    </div>
+                    <p className={`text-xs ${notif.is_read ? 'text-muted-foreground' : 'text-muted-foreground/90'}`}>
+                      {notif.message}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

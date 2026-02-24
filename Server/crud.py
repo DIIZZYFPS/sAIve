@@ -365,6 +365,7 @@ def get_user_notifications(user_id: int):
         SELECT * FROM notifications 
         WHERE user_id = ?
         ORDER BY date DESC
+        LIMIT 50
     ''', (user_id,))
     
     rows = cursor.fetchall()
@@ -391,6 +392,17 @@ def mark_notification_read(notification_id: int):
     cursor.execute('''
         UPDATE notifications SET is_read = 1 WHERE id = ?
     ''', (notification_id,))
+
+    conn.commit()
+    conn.close()
+
+def mark_all_notifications_read(user_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE notifications SET is_read = 1 WHERE user_id = ?
+    ''', (user_id,))
 
     conn.commit()
     conn.close()
