@@ -52,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
 
 import { Separator } from '@/components/ui/separator';
@@ -79,6 +80,8 @@ const formSchema = z.object({
   type: z.enum(["income", "expense"], {
     errorMap: () => ({ message: "Type is required" }),
   }),
+  isRecurring: z.boolean(),
+  interval: z.enum(["daily", "weekly", "monthly", "yearly"]).optional(),
 });
 
 function DashboardHeader({ pageName }: { pageName: string }) {
@@ -162,32 +165,35 @@ function DashboardHeader({ pageName }: { pageName: string }) {
     );
   };
   const handleAddTransaction = (values: any) => {
-    const payload = {
+    // Determine target endpoint and payload based on recurring toggle
+    const endpoint = values.isRecurring ? "/recurring_transactions/" : "/transactions/";
+    const payload: any = {
       user_id: 1,
       recipient: values.title,
-      date: values.date ? values.date.toISOString().slice(0, 10) : undefined,
-      amount: values.amount,
       category: values.category,
       type: values.type,
+      amount: values.amount,
     };
 
-    // Call the API to add the transaction
+    if (values.isRecurring) {
+      payload.interval = values.interval || "monthly";
+      payload.start_date = values.date ? format(values.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+    } else {
+      payload.date = values.date ? format(values.date, 'yyyy-MM-dd') : undefined;
+    }
+
+    console.log("PAYLOAD START DATE:", payload.start_date);
+
+    // Call the API
     toast.promise(
-      api.post("/transactions/", payload).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["transactions"] });
-        queryClient.invalidateQueries({ queryKey: ["asset"] });
-        queryClient.invalidateQueries({ queryKey: ["assets"] });
-        queryClient.invalidateQueries({ queryKey: ["categories"] });
-        queryClient.invalidateQueries({ queryKey: ["statsCategories"] });
-        queryClient.invalidateQueries({ queryKey: ["statsHistory"] });
-        queryClient.invalidateQueries({ queryKey: ["categoryHistory"] });
-        queryClient.invalidateQueries({ queryKey: ["dailySpending"] });
-        queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+      api.post(endpoint, payload).then(() => {
+        queryClient.invalidateQueries(); // invalidate all to be safe, especially if recurring adds a new type
         setIsOpen(false);
+        form.reset();
       }),
       {
-        loading: "Adding transaction...",
-        success: "Transaction added successfully",
+        loading: values.isRecurring ? "Creating recurring template..." : "Adding transaction...",
+        success: values.isRecurring ? "Subscription activated" : "Transaction added successfully",
         error: (err) => {
           if (err.response) {
             return err.response.data.message;
@@ -208,8 +214,12 @@ function DashboardHeader({ pageName }: { pageName: string }) {
       date: new Date(),
       category: "Other",
       type: "income",
+      isRecurring: false,
+      interval: "monthly",
     },
   });
+
+  const isRecurring = form.watch("isRecurring");
 
   // Watch title field and auto-suggest category via AI
   const titleValue = form.watch("title");
@@ -458,6 +468,58 @@ function DashboardHeader({ pageName }: { pageName: string }) {
                         />
                         <Separator className='my-4' />
                       </div>
+
+                      {/* RECURRING TOGGLE */}
+                      <div className="col-span-2 flex flex-col space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="isRecurring"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background/50">
+                              <div className="space-y-0.5">
+                                <FormLabel>Make target recurring</FormLabel>
+                                <p className="text-[10px] text-muted-foreground mr-4">
+                                  Auto-add this transaction on the selected interval.
+                                </p>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        {isRecurring && (
+                          <div className="animate-in fade-in slide-in-from-top-2">
+                            <FormField
+                              control={form.control}
+                              name="interval"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Interval</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select interval" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="daily">Daily</SelectItem>
+                                      <SelectItem value="weekly">Weekly</SelectItem>
+                                      <SelectItem value="monthly">Monthly</SelectItem>
+                                      <SelectItem value="yearly">Yearly</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        )}
+                        <Separator className='my-4' />
+                      </div>
+
                       <div>
                         <FormField
                           control={form.control}

@@ -85,5 +85,35 @@ def create_tables():
         )
     ''')
 
+    # Create recurring_transactions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS recurring_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            category TEXT NOT NULL,
+            recipient TEXT NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+            interval TEXT NOT NULL CHECK(interval IN ('daily', 'weekly', 'monthly', 'yearly')),
+            start_date DATE NOT NULL,
+            next_date DATE NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # Create notifications table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            date DATETIME NOT NULL,
+            is_read BOOLEAN NOT NULL DEFAULT 0,
+            type TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
     conn.commit()
     conn.close()

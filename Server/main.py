@@ -7,8 +7,18 @@ import crud
 import database
 from typing import List, Optional
 from collections import defaultdict
+from contextlib import asynccontextmanager
+import asyncio
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start the background task
+    task = asyncio.create_task(process_recurring_transactions_loop())
+    yield
+    # Optionally cancel task on shutdown
+    task.cancel()
+
+app = FastAPI(lifespan=lifespan)
 
 origins = ["*"]
 
@@ -306,6 +316,28 @@ def get_stats_categories(user_id: int, year: Optional[int] = None, month: Option
     result.sort(key=lambda x: x["amount"], reverse=True)
     return result
 
+# --- Recurring Transactions Endpoints ---
+
+@app.post("/recurring_transactions/")
+def create_recurring(rt: models.RecurringTransactionCreate):
+    print(f"DEBUG: Received Recurring tx. Start Date: {rt.start_date}, Type: {type(rt.start_date)}")
+    crud.create_recurring_transaction(rt)
+    return {"detail": "Recurring transaction created"}
+
+@app.get("/recurring_transactions/{user_id}", response_model=List[models.RecurringTransaction])
+def get_recurring(user_id: int):
+    return crud.get_all_recurring_transactions(user_id)
+
+@app.put("/recurring_transactions/{rt_id}")
+def update_recurring(rt_id: int, rt: models.RecurringTransactionCreate):
+    crud.update_recurring_transaction(rt_id, rt)
+    return {"detail": "Recurring transaction updated"}
+
+@app.delete("/recurring_transactions/{rt_id}")
+def delete_recurring(rt_id: int):
+    crud.delete_recurring_transaction(rt_id)
+    return {"detail": "Recurring transaction deleted"}
+
 @app.get("/stats/category-history/{user_id}")
 def get_category_history(user_id: int, categories: str = "Housing,Food,Transport"):
     """Returns monthly expense totals for specific categories over last 12 months."""
@@ -505,6 +537,97 @@ def organize_assets(user_id: int, transactions: list[models.TransactionCreate]):
         )
 
         crud.create_user_asset(asset)
+
+# --- Notifications Endpoints ---
+
+@app.get("/notifications/{user_id}", response_model=List[models.Notification])
+def get_notifications(user_id: int):
+    return crud.get_user_notifications(user_id)
+
+@app.put("/notifications/{notification_id}/read")
+def read_notification(notification_id: int):
+    crud.mark_notification_read(notification_id)
+    return {"detail": "Notification marked read"}
+
+@app.delete("/notifications/{notification_id}")
+def delete_notification(notification_id: int):
+    crud.delete_notification(notification_id)
+    return {"detail": "Notification deleted"}
+
+# --- Background Auto-Processor ---
+import asyncio
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
+
+async def process_recurring_transactions_loop():
+    """Runs continuously in the background, checking for due recurring transactions."""
+    while True:
+        try:
+            current_date = datetime.now().date()
+            # For simplicity, we process all users right now. In a multi-user app, you'd iterate users.
+            # Here we just fetch user 1 since this is a local app
+            user_id = 1
+            
+            recurring_txns = crud.get_all_recurring_transactions(user_id)
+            
+            transactions_added = False
+            for rt in recurring_txns:
+                # If the next_date has arrived or passed
+                if rt.next_date <= current_date:
+                    print(f"Applying recurring transaction: {rt.recipient} for {rt.amount}")
+                    # 1. Insert the realized transaction into the ledger
+                    new_tx = models.TransactionCreate(
+                        user_id=rt.user_id,
+                        recipient=rt.recipient,
+                        date=rt.next_date,
+                        amount=rt.amount,
+                        category=rt.category,
+                        type=rt.type
+                    )
+                    crud.create_transaction(new_tx)
+
+                    # 2. Calculate the next date based on the interval
+                    if rt.interval == "daily":
+                        next_date = rt.next_date + relativedelta(days=1)
+                    elif rt.interval == "weekly":
+                        next_date = rt.next_date + relativedelta(weeks=1)
+                    elif rt.interval == "monthly":
+                        next_date = rt.next_date + relativedelta(months=1)
+                    elif rt.interval == "yearly":
+                        next_date = rt.next_date + relativedelta(years=1)
+                    else:
+                        next_date = rt.next_date + relativedelta(months=1) # Fallback
+
+                    # 3. Update the recurring transaction's next_date in the database
+                    crud.update_recurring_transaction_next_date(rt.id, next_date.strftime("%Y-%m-%d"))
+                    
+                    # 4. Generate a system notification!
+                    new_notif = models.NotificationCreate(
+                        user_id=rt.user_id,
+                        title="Subscription Paid",
+                        message=f"{rt.recipient} (${rt.amount:.2f}) was automatically logged to your ledger.",
+                        date=datetime.now(),
+                        is_read=False,
+                        type="system"
+                    )
+                    crud.create_notification(new_notif)
+                    
+                    transactions_added = True
+
+            # If we added transactions, we need to update assets/net worth
+            if transactions_added:
+                all_txns = crud.get_all_transactions()
+                update_networth(user_id, transactions=all_txns)
+                month_update(user_id, all_txns)
+                organize_assets(user_id, all_txns)
+                
+        except Exception as e:
+            print(f"Error processing recurring transactions: {e}")
+            
+        # Check every 30 seconds so new subscriptions trigger quickly
+        await asyncio.sleep(30)
+
+
 
 if __name__ == "__main__":
     import uvicorn
