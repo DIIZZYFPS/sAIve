@@ -159,7 +159,14 @@ export default function AiChat({ trigger }: AiChatProps) {
     }, [isModelLoaded, assetData, status]);
 
     const generateBriefing = async () => {
-        const briefingInstruction = 'Give me a quick financial briefing for today. Mention my top expense category and savings rate.';
+        // If the user has empty transactions (or just the initial balances), give them a FTUE welcome
+        const isNewUser = (!transactionsData || transactionsData.length <= 2) && assetData?.asset?.net_worth > 0;
+
+        let briefingInstruction = 'Give me a quick financial briefing for today. Mention my top expense category and savings rate.';
+
+        if (isNewUser) {
+            briefingInstruction = 'Welcome me to sAIve as a new user! Acknowledge my starting net worth and expected monthly income. Tell me you are ready to help track my finances, and ask what my first transaction will be today. Be encouraging!';
+        }
 
         // Use messages array to preserve system instruction
         const promptMessages: Message[] = [

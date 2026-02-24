@@ -50,6 +50,55 @@ def delete_user(user_id: int):
     crud.delete_user(user_id)
     return {"detail": "User deleted"}
 
+# --- Onboarding Endpoint ---
+from pydantic import BaseModel
+
+class OnboardData(BaseModel):
+    checking: float
+    savings: float
+    income: float
+
+@app.post("/users/{user_id}/onboard")
+def onboard_user(user_id: int, data: OnboardData):
+    user = crud.get_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    current_date = datetime.now()
+    
+    # Insert 'Checking Balance' as an income transaction
+    if data.checking > 0:
+        tx_checking = models.TransactionCreate(
+            user_id=user_id,
+            amount=data.checking,
+            type="income",
+            category="income",
+            date=current_date.strftime("%Y-%m-%d"),
+            recipient="Checking Account"
+        )
+        crud.create_transaction(tx_checking)
+        
+    # Insert 'Savings Balance' as an income transaction
+    if data.savings > 0:
+        tx_savings = models.TransactionCreate(
+            user_id=user_id,
+            amount=data.savings,
+            type="income",
+            category="income",
+            date=current_date.strftime("%Y-%m-%d"),
+            recipient="Savings Account"
+        )
+        crud.create_transaction(tx_savings)
+
+    # Note: data.income is kept on the client side for AI context, we don't insert a fake transaction for it.
+    
+    all_transactions = crud.get_all_transactions()
+    month_update(user_id, all_transactions)
+    organize_assets(user_id, all_transactions)
+    update_networth(user_id, transactions=all_transactions)
+
+    return {"detail": "Onboarding complete"}
+
 # User Asset endpoints
 
 @app.get("/user_asset/{user_id}", response_model=models.UserAssetWithUser)
