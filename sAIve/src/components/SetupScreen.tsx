@@ -338,7 +338,7 @@ export function SetupScreen() {
                         <CardHeader className="text-center pt-8 pb-4">
                             <div className="mx-auto mb-6 bg-background rounded-full p-2 mt-4 shadow-xl">
                                 {/* The solid coin logo we generated earlier */}
-                                <Loader />
+                                <Loader processing={false} />
                             </div>
                             <CardTitle className="text-3xl font-bold tracking-tight text-primary">System Initialized</CardTitle>
                             <CardDescription className="text-base mt-2">
