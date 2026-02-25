@@ -559,6 +559,51 @@ def delete_notification(notification_id: int):
     crud.delete_notification(notification_id)
     return {"detail": "Notification deleted"}
 
+# --- MCP Server Integration ---
+from mcp.server.fastmcp import FastMCP
+
+mcp_server = FastMCP("sAIve")
+
+@mcp_server.tool()
+def get_net_worth(user_id: int) -> float:
+    """Get the current net worth of a user."""
+    user = crud.get_user(user_id)
+    if not user:
+        return 0.0
+    return user.net_worth
+
+@mcp_server.tool()
+def log_transaction(user_id: int, amount: float, tx_type: str, category: str, recipient: str) -> str:
+    """Log a new financial transaction for the user, updating their net worth. tx_type must be 'income' or 'expense'."""
+    current_date = datetime.now()
+    tx = models.TransactionCreate(
+        user_id=user_id,
+        amount=amount,
+        type=tx_type,
+        category=category,
+        date=current_date.strftime("%Y-%m-%d"),
+        recipient=recipient
+    )
+    crud.create_transaction(tx)
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    month_update(user_id, all_transactions)
+    organize_assets(user_id, all_transactions)
+    return f"Successfully logged {tx_type} of {amount} to {recipient}."
+
+@mcp_server.tool()
+def get_expense_categories(user_id: int, year: int, month: int) -> dict:
+    """Returns a breakdown of expense categories for a specific month and year."""
+    txns = crud.get_transactions_by_month(user_id, year, month)
+    categories = defaultdict(float)
+    for t in txns:
+        if t.type == "expense":
+            categories[t.category] += t.amount
+    return dict(categories)
+
+# Mount the MCP server to the FastAPI app at /mcp
+app.mount("/mcp", mcp_server.sse_app())
+
 # --- Background Auto-Processor ---
 import asyncio
 from datetime import timedelta
