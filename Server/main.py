@@ -637,14 +637,22 @@ async def process_recurring_transactions_loop():
 if __name__ == "__main__":
     import uvicorn
     import socket
+    import os
 
-    # Let the OS assign a free port
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
+    # Check if we are running in a cloud environment (e.g., Railway sets PORT)
+    env_port = os.getenv("PORT")
 
-    # Signal the port to Electron (must be flushed immediately)
-    print(f"PORT:{port}", flush=True)
+    if env_port:
+        print(f"Starting in cloud mode on port {env_port}")
+        uvicorn.run(app, host="0.0.0.0", port=int(env_port), log_level="info")
+    else:
+        # Let the OS assign a free port (Local Electron behavior)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+        sock.close()
 
-    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+        # Signal the port to Electron (must be flushed immediately)
+        print(f"PORT:{port}", flush=True)
+
+        uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
