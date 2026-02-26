@@ -180,6 +180,11 @@ const fetchTransactions = async () => {
     return response.data;
 };
 
+const fetchUserAsset = async () => {
+    const response = await api.get("/user_asset/1");
+    return response.data;
+};
+
 const Budget = () => {
     const { formatCurrency } = useSettings();
     const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>(loadBudgetLimits);
@@ -188,6 +193,13 @@ const Budget = () => {
         queryKey: ["transactions"],
         queryFn: fetchTransactions,
     });
+
+    const { data: asset } = useQuery({
+        queryKey: ["asset"],
+        queryFn: fetchUserAsset,
+    });
+
+    const currentMonthIncome: number = asset?.asset?.TIncome ?? 0;
 
     const handleSaveLimit = (category: string, value: number) => {
         const updated = { ...budgetLimits, [category]: value };
@@ -209,18 +221,6 @@ const Budget = () => {
             }
         });
         return spending;
-    }, [transactions]);
-
-    // Compute current month's income from transactions
-    const currentMonthIncome = useMemo(() => {
-        const now = new Date();
-        return transactions
-            .filter((tx: any) => {
-                if (!tx.date || tx.category !== "Income") return false;
-                const txDate = new Date(tx.date);
-                return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
-            })
-            .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
     }, [transactions]);
 
     // Summary stats
