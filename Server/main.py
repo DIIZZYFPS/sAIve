@@ -573,15 +573,27 @@ def get_net_worth(user_id: int) -> float:
     return user.net_worth
 
 @mcp_server.tool()
-def log_transaction(user_id: int, amount: float, tx_type: str, category: str, recipient: str) -> str:
-    """Log a new financial transaction for the user, updating their net worth. tx_type must be 'income' or 'expense'."""
-    current_date = datetime.now()
+def log_transaction(user_id: int, amount: float, tx_type: str, category: str, recipient: str, date: Optional[str] = None) -> str:
+    """Log a new financial transaction for the user, updating their net worth. 
+    tx_type must be 'income' or 'expense'.
+    date should be in 'YYYY-MM-DD' format. If not provided, defaults to today.
+    """
+    if date:
+        try:
+            # Validate format
+            datetime.strptime(date, "%Y-%m-%d")
+            tx_date = date
+        except ValueError:
+            return "Error: date must be in YYYY-MM-DD format."
+    else:
+        tx_date = datetime.now().strftime("%Y-%m-%d")
+
     tx = models.TransactionCreate(
         user_id=user_id,
         amount=amount,
         type=tx_type,
         category=category,
-        date=current_date.strftime("%Y-%m-%d"),
+        date=tx_date,
         recipient=recipient
     )
     crud.create_transaction(tx)
@@ -589,7 +601,55 @@ def log_transaction(user_id: int, amount: float, tx_type: str, category: str, re
     update_networth(user_id, transactions=all_transactions)
     month_update(user_id, all_transactions)
     organize_assets(user_id, all_transactions)
-    return f"Successfully logged {tx_type} of {amount} to {recipient}."
+    return f"Successfully logged {tx_type} of {amount} to {recipient} on {tx_date}."
+
+@mcp_server.tool()
+def batch_log_transactions(user_id: int, transactions: list[dict]) -> str:
+    """
+    Log multiple transactions rapidly.
+    'transactions' should be a list of dicts, each containing:
+    - amount: float
+    - tx_type: str ('income' or 'expense')
+    - category: str
+    - recipient: str
+    - date: str (optional, 'YYYY-MM-DD')
+    """
+    success_count = 0
+    errors = []
+    
+    for i, t in enumerate(transactions):
+        try:
+            date_str = t.get('date')
+            if date_str:
+                datetime.strptime(date_str, "%Y-%m-%d")
+            else:
+                date_str = datetime.now().strftime("%Y-%m-%d")
+
+            tx = models.TransactionCreate(
+                user_id=user_id,
+                amount=float(t['amount']),
+                type=t['tx_type'],
+                category=t['category'],
+                date=date_str,
+                recipient=t['recipient']
+            )
+            crud.create_transaction(tx)
+            success_count += 1
+        except Exception as e:
+            errors.append(f"Row {i} failed: {str(e)}")
+            
+    # Calculate globally once at the end of the batch
+    if success_count > 0:
+        all_transactions = crud.get_all_transactions()
+        update_networth(user_id, transactions=all_transactions)
+        month_update(user_id, all_transactions)
+        organize_assets(user_id, all_transactions)
+        
+    result = f"Successfully logged {success_count} transactions."
+    if errors:
+        result += f" Encountered {len(errors)} errors: " + " | ".join(errors)
+        
+    return result
 
 @mcp_server.tool()
 def get_expense_categories(user_id: int, year: int, month: int) -> dict:
