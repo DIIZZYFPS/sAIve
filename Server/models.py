@@ -91,3 +91,14 @@ class NotificationCreate(BaseModel):
     date: datetime
     is_read: bool = False
     type: str
+
+class Budget(BaseModel):
+    id: int
+    user_id: int
+    category: str
+    amount: float
+
+class BudgetCreate(BaseModel):
+    user_id: int
+    category: str
+    amount: float

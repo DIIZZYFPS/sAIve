@@ -115,5 +115,17 @@ def create_tables():
         )
     ''')
 
+    # Create budgets table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS budgets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            UNIQUE(user_id, category)
+        )
+    ''')
+
     conn.commit()
     conn.close()
