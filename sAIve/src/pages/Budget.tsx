@@ -181,7 +181,7 @@ const fetchTransactions = async () => {
 };
 
 const Budget = () => {
-    const { formatCurrency, baseMonthlyIncome } = useSettings();
+    const { formatCurrency } = useSettings();
     const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>(loadBudgetLimits);
 
     const { data: transactions = [] } = useQuery({
@@ -211,6 +211,18 @@ const Budget = () => {
         return spending;
     }, [transactions]);
 
+    // Compute current month's income from transactions
+    const currentMonthIncome = useMemo(() => {
+        const now = new Date();
+        return transactions
+            .filter((tx: any) => {
+                if (!tx.date || tx.category !== "Income") return false;
+                const txDate = new Date(tx.date);
+                return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+            })
+            .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
+    }, [transactions]);
+
     // Summary stats
     const totalBudgeted = useMemo(() =>
         EXPENSE_CATEGORIES.reduce((sum, c) => sum + (budgetLimits[c.name] || 0), 0),
@@ -226,10 +238,10 @@ const Budget = () => {
     );
     const budgetUtilization = totalBudgeted > 0 ? Math.min((totalSpent / totalBudgeted) * 100, 100) : 0;
 
-    // 50/30/20 rule reference based on baseMonthlyIncome
-    const needs = baseMonthlyIncome * 0.5;
-    const wants = baseMonthlyIncome * 0.3;
-    const savings = baseMonthlyIncome * 0.2;
+    // 50/30/20 rule reference based on current month's income from transactions
+    const needs = currentMonthIncome * 0.5;
+    const wants = currentMonthIncome * 0.3;
+    const savings = currentMonthIncome * 0.2;
 
     return (
         <>
@@ -324,7 +336,7 @@ const Budget = () => {
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-semibold">50/30/20 Rule</CardTitle>
                                 <CardDescription className="text-xs">
-                                    A popular budgeting framework for allocating your income
+                                    Based on this month's income: {currentMonthIncome > 0 ? formatCurrency(currentMonthIncome) : "no income recorded yet"}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
@@ -337,7 +349,7 @@ const Budget = () => {
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="text-sm font-medium">{label}</span>
                                             <span className="text-sm font-semibold">
-                                                {baseMonthlyIncome > 0 ? formatCurrency(value) : "—"}
+                                                {currentMonthIncome > 0 ? formatCurrency(value) : "—"}
                                             </span>
                                         </div>
                                         <div className="h-2 rounded-full bg-muted overflow-hidden mb-1">
@@ -349,9 +361,9 @@ const Budget = () => {
                                         <p className="text-xs text-muted-foreground">{description}</p>
                                     </div>
                                 ))}
-                                {baseMonthlyIncome === 0 && (
+                                {currentMonthIncome === 0 && (
                                     <p className="text-xs text-muted-foreground italic text-center pt-1">
-                                        Set your monthly income in Settings to see personalized allocations
+                                        No income recorded for this month yet
                                     </p>
                                 )}
                             </CardContent>
