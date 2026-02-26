@@ -3,7 +3,7 @@ import DashboardHeader from "@/components/DashboardHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSettings } from "@/context/SettingsContext";
 import api from "@/lib/api";
 import {
@@ -32,20 +32,9 @@ const EXPENSE_CATEGORIES = [
     { name: "Other", icon: MoreHorizontal, color: "#8b5cf6" },
 ];
 
-const BUDGET_STORAGE_KEY = "saive-budget-limits";
-
-function loadBudgetLimits(): Record<string, number> {
-    try {
-        const raw = localStorage.getItem(BUDGET_STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
-    } catch {
-        // ignore
-    }
-    return {};
-}
-
-function saveBudgetLimits(limits: Record<string, number>) {
-    localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(limits));
+interface BudgetType {
+    category: string;
+    amount: number;
 }
 
 interface BudgetCardProps {
@@ -126,9 +115,9 @@ const BudgetCard = ({ category, spent, limit, onSaveLimit, formatCurrency }: Bud
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSave();
-                            if (e.key === "Escape") handleCancel();
-                        }}
+                                if (e.key === "Enter") handleSave();
+                                if (e.key === "Escape") handleCancel();
+                            }}
                             className="h-8 text-sm"
                             placeholder="Set budget limit"
                             autoFocus
@@ -185,9 +174,14 @@ const fetchUserAsset = async () => {
     return response.data;
 };
 
+const fetchBudgets = async () => {
+    const response = await api.get("/budgets/1");
+    return response.data;
+};
+
 const Budget = () => {
     const { formatCurrency } = useSettings();
-    const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>(loadBudgetLimits);
+    const queryClient = useQueryClient();
 
     const { data: transactions = [] } = useQuery({
         queryKey: ["transactions"],
@@ -199,12 +193,37 @@ const Budget = () => {
         queryFn: fetchUserAsset,
     });
 
+    const { data: budgets = [] } = useQuery({
+        queryKey: ["budgets"],
+        queryFn: fetchBudgets,
+    });
+
+    // Convert array of budgets to a dictionary for easier lookup
+    const budgetLimits = useMemo(() => {
+        const limits: Record<string, number> = {};
+        budgets.forEach((b: BudgetType) => {
+            limits[b.category] = b.amount;
+        });
+        return limits;
+    }, [budgets]);
+
     const currentMonthIncome: number = asset?.asset?.TIncome ?? 0;
 
+    const updateBudgetMutation = useMutation({
+        mutationFn: async ({ category, amount }: { category: string; amount: number }) => {
+            await api.put("/budgets/1", {
+                user_id: 1,
+                category,
+                amount
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["budgets"] });
+        }
+    });
+
     const handleSaveLimit = (category: string, value: number) => {
-        const updated = { ...budgetLimits, [category]: value };
-        setBudgetLimits(updated);
-        saveBudgetLimits(updated);
+        updateBudgetMutation.mutate({ category, amount: value });
     };
 
     // Calculate this month's spending per category
