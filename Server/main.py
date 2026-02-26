@@ -576,6 +576,7 @@ def get_net_worth(user_id: int) -> float:
 def log_transaction(user_id: int, amount: float, tx_type: str, category: str, recipient: str, date: Optional[str] = None) -> str:
     """Log a new financial transaction for the user, updating their net worth. 
     tx_type must be 'income' or 'expense'.
+    category must be one of: 'Housing', 'Food', 'Transportation', 'Subscriptions', 'Bills', 'Income', 'Other'.
     date should be in 'YYYY-MM-DD' format. If not provided, defaults to today.
     """
     if date:
@@ -610,7 +611,7 @@ def batch_log_transactions(user_id: int, transactions: list[dict]) -> str:
     'transactions' should be a list of dicts, each containing:
     - amount: float
     - tx_type: str ('income' or 'expense')
-    - category: str
+    - category: str (must be 'Housing', 'Food', 'Transportation', 'Subscriptions', 'Bills', 'Income', or 'Other')
     - recipient: str
     - date: str (optional, 'YYYY-MM-DD')
     """
@@ -660,6 +661,19 @@ def get_expense_categories(user_id: int, year: int, month: int) -> dict:
         if t.type == "expense":
             categories[t.category] += t.amount
     return dict(categories)
+
+@mcp_server.tool()
+def update_budget(user_id: int, category: str, amount: float) -> str:
+    """Update or set the budget limit for a specific category.
+    category must be one of: 'Housing', 'Food', 'Transportation', 'Subscriptions', 'Bills', 'Income', 'Other'.
+    """
+    bg = models.BudgetCreate(
+        user_id=user_id,
+        category=category,
+        amount=amount
+    )
+    crud.set_budget(bg)
+    return f"Successfully updated budget for {category} to {amount}."
 
 # Mount the MCP server to the FastAPI app at /mcp
 app.mount("/mcp", mcp_server.sse_app())
