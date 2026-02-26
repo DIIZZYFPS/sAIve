@@ -1,5 +1,5 @@
 from database import create_connection
-from models import User, UserAsset, Transaction, TransactionCreate
+from models import User, UserAsset, Transaction, TransactionCreate, Budget, BudgetCreate
 
 def create_user(user: User):
     conn = create_connection()
@@ -414,6 +414,44 @@ def delete_notification(notification_id: int):
     cursor.execute('''
         DELETE FROM notifications WHERE id = ?
     ''', (notification_id,))
+
+    conn.commit()
+    conn.close()
+
+# --- Budgets ---
+
+def get_budgets(user_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM budgets WHERE user_id = ?
+    ''', (user_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    budgets = []
+    for row in rows:
+        budgets.append(Budget(
+            id=row['id'],
+            user_id=row['user_id'],
+            category=row['category'],
+            amount=row['amount']
+        ))
+    
+    return budgets
+
+def set_budget(budget: BudgetCreate):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO budgets (user_id, category, amount)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, category) 
+        DO UPDATE SET amount = excluded.amount;
+    ''', (budget.user_id, budget.category, budget.amount))
 
     conn.commit()
     conn.close()

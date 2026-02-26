@@ -13,7 +13,7 @@ import {
   Settings,
   PiggyBank,
   Calendar,
-  Users,
+  Target,
   Bot
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -139,10 +139,10 @@ const Sidebar = () => {
               active={location.pathname === '/calendar'}
             />
             <SidebarItem
-              icon={Users}
-              label="Shared"
-              to='/shared'
-              active={location.pathname === '/shared'}
+              icon={Target}
+              label="Budget"
+              to='/budget'
+              active={location.pathname === '/budget'}
             />
 
             <div className="mt-auto">
@@ -178,8 +178,8 @@ const Sidebar = () => {
             <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/calendar' ? 'bg-sidebar-accent text-primary' : '')}>
               <Link to="/calendar"><Calendar size={20} /></Link>
             </Button>
-            <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/shared' ? 'bg-sidebar-accent text-primary' : '')}>
-              <Link to="/shared"><Users size={20} /></Link>
+            <Button asChild variant="ghost" size="icon" className={cn('w-full justify-center h-12', location.pathname === '/budget' ? 'bg-sidebar-accent text-primary' : '')}>
+              <Link to="/budget"><Target size={20} /></Link>
             </Button>
 
             <div className="mt-auto">

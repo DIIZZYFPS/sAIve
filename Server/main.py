@@ -111,6 +111,18 @@ def onboard_user(user_id: int, data: OnboardData):
 
 # User Asset endpoints
 
+@app.get("/budgets/{user_id}", response_model=List[models.Budget])
+def read_budgets(user_id: int):
+    # Optional logic: could check if user exists first
+    return crud.get_budgets(user_id)
+
+@app.put("/budgets/{user_id}")
+def update_budget(user_id: int, budget: models.BudgetCreate):
+    if budget.user_id != user_id:
+        raise HTTPException(status_code=400, detail="User ID mismatch")
+    crud.set_budget(budget)
+    return {"detail": "Budget updated successfully"}
+
 @app.get("/user_asset/{user_id}", response_model=models.UserAssetWithUser)
 def get_user_asset(user_id: int):
     CurrentDate = datetime.now()
