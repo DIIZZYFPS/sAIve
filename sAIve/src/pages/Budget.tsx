@@ -353,7 +353,7 @@ const Budget = () => {
                         <h2 className="text-lg font-semibold">Income Allocation</h2>
                         <Card className="glass-card border-border/50">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold">50/30/20 Rule</CardTitle>
+                                <CardTitle className="text-sm font-semibold">50/30/20 Rule <span className="text-xs text-muted-foreground"> - Recommended</span></CardTitle>
                                 <CardDescription className="text-xs">
                                     Based on this month's income: {currentMonthIncome > 0 ? formatCurrency(currentMonthIncome) : "no income recorded yet"}
                                 </CardDescription>
