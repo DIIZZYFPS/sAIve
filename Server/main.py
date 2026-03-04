@@ -687,6 +687,210 @@ def update_budget(user_id: int, category: str, amount: float) -> str:
     crud.set_budget(bg)
     return f"Successfully updated budget for {category} to {amount}."
 
+@mcp_server.tool()
+def get_user_info(user_id: int) -> dict:
+    """Get the name and net worth of a user."""
+    user = crud.get_user(user_id)
+    if not user:
+        return {"error": f"User {user_id} not found."}
+    return {"id": user.id, "name": user.name, "net_worth": user.net_worth}
+
+@mcp_server.tool()
+def get_transactions(user_id: int, year: int, month: int) -> list:
+    """Get all transactions for a user in a specific month and year.
+    Returns a list of transaction dicts with id, date, amount, type, category, and recipient.
+    """
+    txns = crud.get_transactions_by_month(user_id, year, month)
+    return [
+        {
+            "id": t.id,
+            "date": str(t.date),
+            "amount": t.amount,
+            "type": t.type,
+            "category": t.category,
+            "recipient": t.recipient,
+        }
+        for t in txns
+    ]
+
+@mcp_server.tool()
+def delete_transaction(transaction_id: int, user_id: int) -> str:
+    """Delete a transaction by its ID and recalculate the user's financial state.
+    Returns a confirmation message or an error string.
+    """
+    transaction = crud.get_transaction(transaction_id)
+    if not transaction:
+        return f"Error: Transaction {transaction_id} not found."
+    if transaction.user_id != user_id:
+        return f"Error: Transaction {transaction_id} does not belong to user {user_id}."
+    crud.delete_transaction(transaction_id)
+    all_transactions = crud.get_all_transactions()
+    user_transactions = [t for t in all_transactions if t.user_id == user_id]
+    update_networth(user_id, transactions=user_transactions)
+    month_update(user_id, user_transactions)
+    organize_assets(user_id, user_transactions)
+    return f"Successfully deleted transaction {transaction_id}."
+
+@mcp_server.tool()
+def get_budgets(user_id: int) -> list:
+    """Get all budget limits set for a user.
+    Returns a list of dicts with category and amount.
+    """
+    budgets = crud.get_budgets(user_id)
+    return [{"id": b.id, "category": b.category, "amount": b.amount} for b in budgets]
+
+@mcp_server.tool()
+def get_monthly_summary(user_id: int, year: int, month: int) -> dict:
+    """Get the monthly financial summary (income, expenses, savings, net worth) for a user.
+    Returns a dict with keys: income, expense, savings, net_worth.
+    Returns an empty dict if no data exists for that month.
+    """
+    asset = crud.get_user_asset(user_id, year, month)
+    if not asset:
+        return {}
+    return {
+        "year": asset.year,
+        "month": asset.month,
+        "income": asset.TIncome,
+        "expense": asset.TExpense,
+        "savings": asset.TSavings,
+        "net_worth": asset.net_worth,
+    }
+
+@mcp_server.tool()
+def get_financial_history(user_id: int) -> list:
+    """Get the financial history for a user over the last 12 months.
+    Returns a list of monthly summaries sorted oldest to newest, each with:
+    month, year, income, expense, savings, net_worth, savings_rate (%).
+    """
+    assets = crud.get_all_user_assets(user_id)
+    if not assets:
+        return []
+    sorted_assets = sorted(assets, key=lambda a: (a.year, a.month))
+    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    result = []
+    for a in sorted_assets[-12:]:
+        savings_rate = (a.TSavings / a.TIncome * 100) if a.TIncome > 0 else 0
+        result.append({
+            "month": month_names[a.month],
+            "year": a.year,
+            "income": a.TIncome,
+            "expense": a.TExpense,
+            "savings": a.TSavings,
+            "net_worth": a.net_worth,
+            "savings_rate": round(savings_rate, 1),
+        })
+    return result
+
+@mcp_server.tool()
+def get_recurring_transactions(user_id: int) -> list:
+    """Get all recurring transactions (subscriptions, bills, etc.) for a user.
+    Returns a list of dicts with id, recipient, amount, type, category, interval, start_date, next_date.
+    """
+    rts = crud.get_all_recurring_transactions(user_id)
+    return [
+        {
+            "id": rt.id,
+            "recipient": rt.recipient,
+            "amount": rt.amount,
+            "type": rt.type,
+            "category": rt.category,
+            "interval": rt.interval,
+            "start_date": str(rt.start_date),
+            "next_date": str(rt.next_date),
+        }
+        for rt in rts
+    ]
+
+@mcp_server.tool()
+def create_recurring_transaction(user_id: int, amount: float, tx_type: str, category: str, recipient: str, interval: str, start_date: str) -> str:
+    """Create a new recurring transaction (e.g. a subscription or regular bill).
+    tx_type must be 'income' or 'expense'.
+    category must be one of: 'Housing', 'Food', 'Transportation', 'Subscriptions', 'Bills', 'Income', 'Other'.
+    interval must be one of: 'daily', 'weekly', 'monthly', 'yearly'.
+    start_date should be in 'YYYY-MM-DD' format.
+    """
+    try:
+        datetime.strptime(start_date, "%Y-%m-%d")
+    except ValueError:
+        return "Error: start_date must be in YYYY-MM-DD format."
+    try:
+        rt = models.RecurringTransactionCreate(
+            user_id=user_id,
+            amount=amount,
+            type=tx_type,
+            category=category,
+            recipient=recipient,
+            interval=interval,
+            start_date=start_date,
+        )
+    except Exception as e:
+        return f"Error: Invalid input — {e}"
+    crud.create_recurring_transaction(rt)
+    return f"Successfully created recurring {tx_type} of {amount} to {recipient} every {interval} starting {start_date}."
+
+@mcp_server.tool()
+def update_recurring_transaction(rt_id: int, user_id: int, amount: float, tx_type: str, category: str, recipient: str, interval: str, start_date: str) -> str:
+    """Update an existing recurring transaction (e.g. change subscription amount or frequency).
+    tx_type must be 'income' or 'expense'.
+    category must be one of: 'Housing', 'Food', 'Transportation', 'Subscriptions', 'Bills', 'Income', 'Other'.
+    interval must be one of: 'daily', 'weekly', 'monthly', 'yearly'.
+    start_date should be in 'YYYY-MM-DD' format.
+    """
+    existing = crud.get_recurring_transaction(rt_id)
+    if not existing:
+        return f"Error: Recurring transaction {rt_id} not found."
+    if existing.user_id != user_id:
+        return f"Error: Recurring transaction {rt_id} does not belong to user {user_id}."
+    try:
+        datetime.strptime(start_date, "%Y-%m-%d")
+    except ValueError:
+        return "Error: start_date must be in YYYY-MM-DD format."
+    try:
+        rt = models.RecurringTransactionCreate(
+            user_id=user_id,
+            amount=amount,
+            type=tx_type,
+            category=category,
+            recipient=recipient,
+            interval=interval,
+            start_date=start_date,
+        )
+    except Exception as e:
+        return f"Error: Invalid input — {e}"
+    crud.update_recurring_transaction(rt_id, rt)
+    return f"Successfully updated recurring transaction {rt_id}."
+
+@mcp_server.tool()
+def delete_recurring_transaction(rt_id: int, user_id: int) -> str:
+    """Delete a recurring transaction (cancel a subscription or bill) by its ID."""
+    existing = crud.get_recurring_transaction(rt_id)
+    if not existing:
+        return f"Error: Recurring transaction {rt_id} not found."
+    if existing.user_id != user_id:
+        return f"Error: Recurring transaction {rt_id} does not belong to user {user_id}."
+    crud.delete_recurring_transaction(rt_id)
+    return f"Successfully deleted recurring transaction {rt_id}."
+
+@mcp_server.tool()
+def get_notifications(user_id: int) -> list:
+    """Get the latest notifications for a user (up to 50, newest first).
+    Returns a list of dicts with id, title, message, date, is_read, and type.
+    """
+    notifications = crud.get_user_notifications(user_id)
+    return [
+        {
+            "id": n.id,
+            "title": n.title,
+            "message": n.message,
+            "date": str(n.date),
+            "is_read": n.is_read,
+            "type": n.type,
+        }
+        for n in notifications
+    ]
+
 # Mount the MCP server to the FastAPI app at /mcp
 app.mount("/mcp", mcp_server.sse_app())
 
