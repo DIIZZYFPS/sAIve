@@ -269,6 +269,31 @@ def create_recurring_transaction(rt: RecurringTransactionCreate):
     conn.commit()
     conn.close()
 
+def get_recurring_transaction(rt_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM recurring_transactions WHERE id = ?
+    ''', (rt_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        return RecurringTransaction(
+            id=row['id'],
+            user_id=row['user_id'],
+            amount=row['amount'],
+            category=row['category'],
+            recipient=row['recipient'],
+            type=row['type'],
+            interval=row['interval'],
+            start_date=row['start_date'],
+            next_date=row['next_date']
+        )
+    return None
+
 def get_all_recurring_transactions(user_id: int):
     conn = create_connection()
     cursor = conn.cursor()
