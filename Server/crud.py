@@ -382,6 +382,29 @@ def create_notification(notification: NotificationCreate):
     conn.commit()
     conn.close()
 
+def get_notification(notification_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM notifications WHERE id = ?
+    ''', (notification_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        return Notification(
+            id=row['id'],
+            user_id=row['user_id'],
+            title=row['title'],
+            message=row['message'],
+            date=row['date'],
+            is_read=row['is_read'],
+            type=row['type']
+        )
+    return None
+
 def get_user_notifications(user_id: int):
     conn = create_connection()
     cursor = conn.cursor()
