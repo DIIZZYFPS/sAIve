@@ -1,7 +1,7 @@
 {
   "name": "saive",
   "private": true,
-  "version": "0.9.1",
+  "version": "0.10.1",
   "description": "An AI-powered budgeting application.",
   "author": "DIIZZY",
   "repository": {
@@ -25,7 +25,8 @@
     "preview": "vite preview",
     "electron:start": "concurrently \"cross-env BROWSER=none npm run start\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
     "electron:build": "vite build && electron-builder",
-    "electron:dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:5173 && electron . --dev\""
+    "electron:dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:5173 && electron . --dev\"",
+    "browser": "concurrently \"cross-env PORT=8000 python ../Server/main.py\" \"vite --config vite.config.browser.ts\""
   },
   "dependencies": {
     "@amcharts/amcharts5": "^5.12.2",
