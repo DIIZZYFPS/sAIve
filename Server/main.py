@@ -11,6 +11,11 @@ from typing import List, Optional
 from collections import defaultdict
 from contextlib import asynccontextmanager
 import asyncio
+import bleach
+
+def sanitize(value: str) -> str:
+    """Strip all HTML/script tags from a string to prevent stored XSS."""
+    return bleach.clean(str(value), tags=[], strip=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -618,14 +623,17 @@ def log_transaction(user_id: int, amount: float, tx_type: str, category: str, re
     else:
         tx_date = datetime.now().strftime("%Y-%m-%d")
 
-    tx = models.TransactionCreate(
-        user_id=user_id,
-        amount=amount,
-        type=tx_type,
-        category=category,
-        date=tx_date,
-        recipient=recipient
-    )
+    try:
+        tx = models.TransactionCreate(
+            user_id=user_id,
+            amount=amount,
+            type=tx_type,
+            category=category,
+            date=tx_date,
+            recipient=sanitize(recipient)
+        )
+    except Exception as e:
+        return f"Error: Invalid input — {e}"
     crud.create_transaction(tx)
     all_transactions = crud.get_all_transactions()
     update_networth(user_id, transactions=all_transactions)
@@ -662,7 +670,7 @@ def batch_log_transactions(user_id: int, transactions: list[dict]) -> str:
                 type=t['tx_type'],
                 category=t['category'],
                 date=date_str,
-                recipient=t['recipient']
+                recipient=sanitize(t['recipient'])
             )
             crud.create_transaction(tx)
             success_count += 1
@@ -842,7 +850,7 @@ def create_recurring_transaction(user_id: int, amount: float, tx_type: str, cate
             amount=amount,
             type=tx_type,
             category=category,
-            recipient=recipient,
+            recipient=sanitize(recipient),
             interval=interval,
             start_date=start_date,
         )
@@ -875,7 +883,7 @@ def update_recurring_transaction(rt_id: int, user_id: int, amount: float, tx_typ
             amount=amount,
             type=tx_type,
             category=category,
-            recipient=recipient,
+            recipient=sanitize(recipient),
             interval=interval,
             start_date=start_date,
         )
