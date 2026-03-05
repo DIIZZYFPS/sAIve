@@ -5,7 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.11.0] — 2026-03-05 — *AI Chat Sidebar & Simulation Panel*
+
+### Added
+- **Persistent AI Chat sidebar** — the AI assistant no longer opens as a blocking full-screen Drawer; it now renders as a fixed-width right panel (`320px`) alongside the main page, so the current page remains visible while chatting
+  - Chat state (model load, briefing, message history) is now **always preserved** across open/close cycles — the component stays mounted and only the container width animates
+  - Panel displays inline model download progress and model info (`gemma-3-270m · WebGPU`)
+- **Simulate button** in the AI chat header — placeholder hook for future MCP tool-call output; cycles through four demo visualizations on each press (bar chart, line chart, pie chart, data table)
+- **Simulation Panel** — animated bottom panel that slides up below the main content area when a simulation is active, keeping all three zones (nav sidebar, main page, AI chat) simultaneously visible
+  - Renders `bar`, `line`, and `pie` charts via Recharts, plus a scrollable data table
+  - Dismissed with the × button; AI chat panel remains open independently
+- **Nav auto-collapse** — the left navigation sidebar automatically collapses to icon-only mode when the AI chat panel opens, reclaiming horizontal real estate; restores the user's previous collapse state when chat is closed
+- **Custom themed scrollbar** (global) — replaces the default browser scrollbar with a 6px rounded pill style using CSS variables (`--border` / `--muted-foreground`) that automatically adapts to all themes and dark mode
+
+### Changed
+- `Layout.tsx` restructured from 2-zone to 3-zone flex layout (nav | center stack | AI chat)
+- `Sidebar.tsx` refactored: AI chat toggle is now a plain button (not a Drawer trigger); accepts `aiChatOpen` and `onAiChatToggle` props from Layout
+- `AiContext.tsx`: added `SimulationPayload` type, `activeSimulation` state, and `setActiveSimulation` action — the shared bus for simulation data (MCP tool output will write here when connected)
+- Version bumped: `0.10.1` → `0.11.0`
+
+---
+
 ## [v0.10.1] — 2026-03-04
+
 
 ### Added
 - **Transactions Table Overhaul** — complete rewrite of `TransactionsTable.tsx`
