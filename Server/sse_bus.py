@@ -21,18 +21,28 @@ _subscribers: list[tuple[int, asyncio.Queue]] = []
 
 
 async def subscribe(user_id: int) -> AsyncIterator[str]:
-    """Async generator that yields SSE-formatted strings for a given user."""
+    """Async generator that yields SSE-formatted strings for a given user.
+    A ': ping' heartbeat is sent every 20 s of inactivity to prevent
+    idle TCP connections from being killed by proxies or the OS.
+    """
+    HEARTBEAT_INTERVAL = 20  # seconds
+
     q: asyncio.Queue = asyncio.Queue()
     _subscribers.append((user_id, q))
     try:
-        # Send a heartbeat comment immediately so the browser knows the stream opened
+        # Immediate confirmation comment so the browser knows the stream opened
         yield ": connected\n\n"
         while True:
-            data = await q.get()
-            yield data
+            try:
+                data = await asyncio.wait_for(q.get(), timeout=HEARTBEAT_INTERVAL)
+                yield data
+            except asyncio.TimeoutError:
+                # No event arrived in time — send a keepalive comment
+                yield ": ping\n\n"
     finally:
         # Clean up when the client disconnects
         _subscribers.remove((user_id, q))
+
 
 
 def emit_event(event_type: str, user_id: int) -> None:
