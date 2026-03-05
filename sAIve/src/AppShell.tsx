@@ -6,6 +6,7 @@ import { Loader } from './components/Loader';
 import { useAi } from '@/context/AiContext';
 import { useSettings } from '@/context/SettingsContext';
 import { SetupScreen } from '@/components/SetupScreen';
+import { useServerEvents } from '@/hooks/useServerEvents';
 
 // The function to fetch transactions, which will be used by the query
 const fetchTransactions = async () => {
@@ -18,6 +19,10 @@ const MainApp: React.FC = () => {
   const queryClient = useQueryClient();
   const { loadModel } = useAi();
   const { aiEnabled } = useSettings();
+
+  // Connect to backend SSE stream — invalidates queries when data changes
+  // (triggered by AI agent, background processor, or another browser tab)
+  useServerEvents(1);
 
   const hasInitiatedLoad = React.useRef(false);
 

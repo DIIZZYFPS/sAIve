@@ -2,9 +2,11 @@ from datetime import datetime
 import time
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import models
 import crud
 import database
+import sse_bus
 from typing import List, Optional
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -35,6 +37,21 @@ app.add_middleware(
 )
 
 database.create_tables()
+
+# --- SSE Events Endpoint ---
+@app.get("/events/{user_id}")
+async def event_stream(user_id: int):
+    """Server-Sent Events stream. Clients subscribe here to receive real-time
+    invalidation signals whenever backend data changes for the given user."""
+    return StreamingResponse(
+        sse_bus.subscribe(user_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 # User endpoints
 @app.post("/users/", response_model=models.User)
@@ -106,6 +123,7 @@ def onboard_user(user_id: int, data: OnboardData):
     month_update(user_id, all_transactions)
     organize_assets(user_id, all_transactions)
     update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("transactions_changed", user_id)
 
     return {"detail": "Onboarding complete"}
 
@@ -121,6 +139,7 @@ def update_budget(user_id: int, budget: models.BudgetCreate):
     if budget.user_id != user_id:
         raise HTTPException(status_code=400, detail="User ID mismatch")
     crud.set_budget(budget)
+    sse_bus.emit_event("budgets_changed", user_id)
     return {"detail": "Budget updated successfully"}
 
 @app.get("/user_asset/{user_id}", response_model=models.UserAssetWithUser)
@@ -158,6 +177,7 @@ def create_transaction(transaction: models.TransactionCreate):
     month_update(transaction.user_id, all_transactions)
     organize_assets(transaction.user_id, all_transactions)
     update_networth(transaction.user_id, transactions = all_transactions)
+    sse_bus.emit_event("transactions_changed", transaction.user_id)
     return {"detail": "Transaction created successfully"}
 
 @app.get("/transactions/", response_model=list[models.Transaction])
@@ -185,28 +205,13 @@ def delete_transaction(transaction_id: int):
     user_id = transaction.user_id
     crud.delete_transaction(transaction_id)
     
-    # Recalculate monthly stats for this user
-    # Fetch ALL transactions to rebuild state correctly
-    # Note: Existing create_transaction logic re-fetches all globally, we should filter by user
-    # But for now let's stick to the pattern but filter in memory if needed, 
-    # or ideally update crud to get_all_transactions(user_id)
-    
-    # Current implementation of get_all_transactions() returns ALL users' txns
-    # We should add a crud method to get transactions for a specific user to be safe/efficient
-    # But checking crud.py: get_all_transactions() is global.
-    # Let's use get_all_transactions() and filter in python for now to match create_transaction pattern
-    # OR better: The existing month_update and organize_assets take a list of transactions.
-    
-    all_transactions = crud.get_all_transactions() # This gets EVERYONE'S transactions
-    
-    # Filter for just this user to avoiding messing up others (if multi-user)
+    all_transactions = crud.get_all_transactions()
     user_transactions = [t for t in all_transactions if t.user_id == user_id]
     
-    # First, recompute net worth based on the updated set of transactions
     update_networth(user_id, transactions=user_transactions)
-    # Then update monthly stats and assets, which may depend on user.net_worth
     month_update(user_id, user_transactions)
     organize_assets(user_id, user_transactions)
+    sse_bus.emit_event("transactions_changed", user_id)
     
     return {"detail": "Transaction deleted"}
 
@@ -334,6 +339,7 @@ def get_stats_categories(user_id: int, year: Optional[int] = None, month: Option
 def create_recurring(rt: models.RecurringTransactionCreate):
     print(f"DEBUG: Received Recurring tx. Start Date: {rt.start_date}, Type: {type(rt.start_date)}")
     crud.create_recurring_transaction(rt)
+    sse_bus.emit_event("recurring_changed", rt.user_id)
     return {"detail": "Recurring transaction created"}
 
 @app.get("/recurring_transactions/{user_id}", response_model=List[models.RecurringTransaction])
@@ -343,11 +349,15 @@ def get_recurring(user_id: int):
 @app.put("/recurring_transactions/{rt_id}")
 def update_recurring(rt_id: int, rt: models.RecurringTransactionCreate):
     crud.update_recurring_transaction(rt_id, rt)
+    sse_bus.emit_event("recurring_changed", rt.user_id)
     return {"detail": "Recurring transaction updated"}
 
 @app.delete("/recurring_transactions/{rt_id}")
 def delete_recurring(rt_id: int):
+    existing = crud.get_recurring_transaction(rt_id)
+    user_id = existing.user_id if existing else 1
     crud.delete_recurring_transaction(rt_id)
+    sse_bus.emit_event("recurring_changed", user_id)
     return {"detail": "Recurring transaction deleted"}
 
 @app.get("/stats/category-history/{user_id}")
@@ -558,17 +568,24 @@ def get_notifications(user_id: int):
 
 @app.put("/notifications/{notification_id}/read")
 def read_notification(notification_id: int):
+    notif = crud.get_notification(notification_id)
+    user_id = notif.user_id if notif else 1
     crud.mark_notification_read(notification_id)
+    sse_bus.emit_event("notifications_changed", user_id)
     return {"detail": "Notification marked read"}
 
 @app.put("/notifications/user/{user_id}/read_all")
 def read_all_notifications(user_id: int):
     crud.mark_all_notifications_read(user_id)
+    sse_bus.emit_event("notifications_changed", user_id)
     return {"detail": "All notifications marked read"}
 
 @app.delete("/notifications/{notification_id}")
 def delete_notification(notification_id: int):
+    notif = crud.get_notification(notification_id)
+    user_id = notif.user_id if notif else 1
     crud.delete_notification(notification_id)
+    sse_bus.emit_event("notifications_changed", user_id)
     return {"detail": "Notification deleted"}
 
 # --- MCP Server Integration ---
@@ -614,6 +631,7 @@ def log_transaction(user_id: int, amount: float, tx_type: str, category: str, re
     update_networth(user_id, transactions=all_transactions)
     month_update(user_id, all_transactions)
     organize_assets(user_id, all_transactions)
+    sse_bus.emit_event("transactions_changed", user_id)
     return f"Successfully logged {tx_type} of {amount} to {recipient} on {tx_date}."
 
 @mcp_server.tool()
@@ -657,6 +675,7 @@ def batch_log_transactions(user_id: int, transactions: list[dict]) -> str:
         update_networth(user_id, transactions=all_transactions)
         month_update(user_id, all_transactions)
         organize_assets(user_id, all_transactions)
+        sse_bus.emit_event("transactions_changed", user_id)
         
     result = f"Successfully logged {success_count} transactions."
     if errors:
@@ -685,6 +704,7 @@ def update_budget(user_id: int, category: str, amount: float) -> str:
         amount=amount
     )
     crud.set_budget(bg)
+    sse_bus.emit_event("budgets_changed", user_id)
     return f"Successfully updated budget for {category} to {amount}."
 
 @mcp_server.tool()
@@ -729,6 +749,7 @@ def delete_transaction(transaction_id: int, user_id: int) -> str:
     update_networth(user_id, transactions=user_transactions)
     month_update(user_id, user_transactions)
     organize_assets(user_id, user_transactions)
+    sse_bus.emit_event("transactions_changed", user_id)
     return f"Successfully deleted transaction {transaction_id}."
 
 @mcp_server.tool()
@@ -828,6 +849,7 @@ def create_recurring_transaction(user_id: int, amount: float, tx_type: str, cate
     except Exception as e:
         return f"Error: Invalid input — {e}"
     crud.create_recurring_transaction(rt)
+    sse_bus.emit_event("recurring_changed", user_id)
     return f"Successfully created recurring {tx_type} of {amount} to {recipient} every {interval} starting {start_date}."
 
 @mcp_server.tool()
@@ -860,6 +882,7 @@ def update_recurring_transaction(rt_id: int, user_id: int, amount: float, tx_typ
     except Exception as e:
         return f"Error: Invalid input — {e}"
     crud.update_recurring_transaction(rt_id, rt)
+    sse_bus.emit_event("recurring_changed", user_id)
     return f"Successfully updated recurring transaction {rt_id}."
 
 @mcp_server.tool()
@@ -871,6 +894,7 @@ def delete_recurring_transaction(rt_id: int, user_id: int) -> str:
     if existing.user_id != user_id:
         return f"Error: Recurring transaction {rt_id} does not belong to user {user_id}."
     crud.delete_recurring_transaction(rt_id)
+    sse_bus.emit_event("recurring_changed", user_id)
     return f"Successfully deleted recurring transaction {rt_id}."
 
 @mcp_server.tool()
@@ -912,36 +936,24 @@ async def process_recurring_transactions_loop():
             
             transactions_added = False
             for rt in recurring_txns:
-                # If the next_date has arrived or passed
-                if rt.next_date <= current_date:
-                    print(f"Applying recurring transaction: {rt.recipient} for {rt.amount}")
+                # Use a while loop so ALL overdue occurrences are applied in one
+                # pass — e.g. a monthly subscription 3 months overdue gets 3
+                # transactions inserted before we sleep again.
+                next_date = rt.next_date  # track locally; write to DB once at end
+                while next_date <= current_date:
+                    print(f"Applying recurring transaction: {rt.recipient} for {rt.amount} on {next_date}")
                     # 1. Insert the realized transaction into the ledger
                     new_tx = models.TransactionCreate(
                         user_id=rt.user_id,
                         recipient=rt.recipient,
-                        date=rt.next_date,
+                        date=next_date,
                         amount=rt.amount,
                         category=rt.category,
                         type=rt.type
                     )
                     crud.create_transaction(new_tx)
 
-                    # 2. Calculate the next date based on the interval
-                    if rt.interval == "daily":
-                        next_date = rt.next_date + relativedelta(days=1)
-                    elif rt.interval == "weekly":
-                        next_date = rt.next_date + relativedelta(weeks=1)
-                    elif rt.interval == "monthly":
-                        next_date = rt.next_date + relativedelta(months=1)
-                    elif rt.interval == "yearly":
-                        next_date = rt.next_date + relativedelta(years=1)
-                    else:
-                        next_date = rt.next_date + relativedelta(months=1) # Fallback
-
-                    # 3. Update the recurring transaction's next_date in the database
-                    crud.update_recurring_transaction_next_date(rt.id, next_date.strftime("%Y-%m-%d"))
-                    
-                    # 4. Generate a system notification!
+                    # 2. Generate a notification for this occurrence
                     new_notif = models.NotificationCreate(
                         user_id=rt.user_id,
                         title="Subscription Paid",
@@ -951,8 +963,24 @@ async def process_recurring_transactions_loop():
                         type="system"
                     )
                     crud.create_notification(new_notif)
-                    
+
+                    # 3. Advance next_date by one interval
+                    if rt.interval == "daily":
+                        next_date = next_date + relativedelta(days=1)
+                    elif rt.interval == "weekly":
+                        next_date = next_date + relativedelta(weeks=1)
+                    elif rt.interval == "monthly":
+                        next_date = next_date + relativedelta(months=1)
+                    elif rt.interval == "yearly":
+                        next_date = next_date + relativedelta(years=1)
+                    else:
+                        next_date = next_date + relativedelta(months=1)  # Fallback
+
                     transactions_added = True
+
+                # 4. Write the final next_date to the DB once (outside the while)
+                if next_date != rt.next_date:
+                    crud.update_recurring_transaction_next_date(rt.id, next_date.strftime("%Y-%m-%d"))
 
             # If we added transactions, we need to update assets/net worth
             if transactions_added:
@@ -960,6 +988,8 @@ async def process_recurring_transactions_loop():
                 update_networth(user_id, transactions=all_txns)
                 month_update(user_id, all_txns)
                 organize_assets(user_id, all_txns)
+                sse_bus.emit_event("transactions_changed", user_id)
+                sse_bus.emit_event("notifications_changed", user_id)
                 
         except Exception as e:
             print(f"Error processing recurring transactions: {e}")
