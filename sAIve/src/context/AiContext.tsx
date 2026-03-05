@@ -11,6 +11,13 @@ export interface Message {
     content: string;
 }
 
+export interface SimulationPayload {
+    type: 'chart' | 'table' | 'breakdown';
+    title: string;
+    chartType?: 'bar' | 'line' | 'pie';
+    data: any[];
+}
+
 interface AiContextType {
     isModelLoaded: boolean;
     status: "idle" | "loading" | "generating" | "error";
@@ -19,6 +26,8 @@ interface AiContextType {
     generate: (input: string | Message[], maxTokens?: number) => Promise<string>;
     suggestCategory: (title: string) => Promise<Category | null>;
     interrupt: () => void;
+    activeSimulation: SimulationPayload | null;
+    setActiveSimulation: (payload: SimulationPayload | null) => void;
 }
 
 const AiContext = createContext<AiContextType | undefined>(undefined);
@@ -28,6 +37,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     const [isModelLoaded, setIsModelLoaded] = useState(false);
     const [status, setStatus] = useState<"idle" | "loading" | "generating" | "error">("idle");
     const [progress, setProgress] = useState<{ file: string; progress: number } | null>(null);
+    const [activeSimulation, setActiveSimulation] = useState<SimulationPayload | null>(null);
     const { aiModel } = useSettings();
 
     // Promise resolvers for loadModel calls
@@ -273,6 +283,8 @@ export function AiProvider({ children }: { children: ReactNode }) {
                 generate,
                 suggestCategory,
                 interrupt,
+                activeSimulation,
+                setActiveSimulation,
             }}
         >
             {children}

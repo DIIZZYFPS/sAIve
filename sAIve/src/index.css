@@ -46,16 +46,19 @@
 
 }
 
-:root, .theme-dynamic {
+:root,
+.theme-dynamic {
   /* Theme 1: Core Dynamic (Light) */
   --radius: 1rem;
-  --background: oklch(1 0 0); /* White */
+  --background: oklch(1 0 0);
+  /* White */
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.141 0.005 285.823);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.53 0.22 25); /* Cherry Red */
+  --primary: oklch(0.53 0.22 25);
+  /* Cherry Red */
   --primary-foreground: oklch(0.971 0.013 17.38);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
@@ -83,7 +86,7 @@
   --expense: oklch(0.40 0.13 26);
   --income: oklch(0.77 0.20 131);
   --saving: oklch(0.6 0.118 184.704);
-  
+
   /* Logo Specific Colors */
   --logo-ring-1: oklch(0.53 0.22 25);
   --logo-ring-2: oklch(0.43 0.22 25);
@@ -93,15 +96,18 @@
   --logo-core: oklch(0.98 0.02 25);
 }
 
-.dark, .dark.theme-dynamic {
+.dark,
+.dark.theme-dynamic {
   /* Theme 1: Core Dynamic (Dark) */
-  --background: oklch(0 0 0); /* Pure Black */
+  --background: oklch(0 0 0);
+  /* Pure Black */
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.15 0 0); 
+  --card: oklch(0.15 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.15 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.53 0.22 25); /* #ef4444 Red */
+  --primary: oklch(0.53 0.22 25);
+  /* #ef4444 Red */
   --primary-foreground: oklch(0.971 0.013 17.38);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
@@ -142,13 +148,15 @@
 .theme-mint {
   /* Theme 2: Cyber Mint (Light) */
   --radius: 1rem;
-  --background: oklch(0.98 0 0); /* #f8fafc */
-  --foreground: oklch(0.15 0.02 250); 
+  --background: oklch(0.98 0 0);
+  /* #f8fafc */
+  --foreground: oklch(0.15 0.02 250);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.15 0.02 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.02 250);
-  --primary: oklch(0.5 0.15 180); /* #0f766e Teal */
+  --primary: oklch(0.5 0.15 180);
+  /* #0f766e Teal */
   --primary-foreground: oklch(0.98 0 0);
   --secondary: oklch(0.95 0.02 250);
   --secondary-foreground: oklch(0.2 0.02 250);
@@ -174,13 +182,15 @@
 
 .dark.theme-mint {
   /* Theme 2: Cyber Mint (Dark) */
-  --background: oklch(0.15 0.02 250); /* #020617 */
+  --background: oklch(0.15 0.02 250);
+  /* #020617 */
   --foreground: oklch(0.98 0 0);
-  --card: oklch(0.2 0.02 250); 
+  --card: oklch(0.2 0.02 250);
   --card-foreground: oklch(0.98 0 0);
   --popover: oklch(0.2 0.02 250);
   --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.8 0.15 180); /* #2dd4bf Mint */
+  --primary: oklch(0.8 0.15 180);
+  /* #2dd4bf Mint */
   --primary-foreground: oklch(0.15 0.02 250);
   --secondary: oklch(0.25 0.02 250);
   --secondary-foreground: oklch(0.98 0 0);
@@ -204,13 +214,15 @@
 .theme-emerald {
   /* Theme 3: Deep Emerald (Light) */
   --radius: 1rem;
-  --background: oklch(0.98 0.01 100); /* #fafafa */
-  --foreground: oklch(0.15 0.02 300); 
+  --background: oklch(0.98 0.01 100);
+  /* #fafafa */
+  --foreground: oklch(0.15 0.02 300);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.15 0.02 300);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.02 300);
-  --primary: oklch(0.5 0.15 150); /* #047857 Forest Green */
+  --primary: oklch(0.5 0.15 150);
+  /* #047857 Forest Green */
   --primary-foreground: oklch(0.98 0 0);
   --secondary: oklch(0.95 0.02 300);
   --secondary-foreground: oklch(0.2 0.02 300);
@@ -236,13 +248,15 @@
 
 .dark.theme-emerald {
   /* Theme 3: Deep Emerald (Dark) */
-  --background: oklch(0.15 0.05 300); /* #1e1b4b Indigo */
+  --background: oklch(0.15 0.05 300);
+  /* #1e1b4b Indigo */
   --foreground: oklch(0.98 0 0);
-  --card: oklch(0.2 0.05 300); 
+  --card: oklch(0.2 0.05 300);
   --card-foreground: oklch(0.98 0 0);
   --popover: oklch(0.2 0.05 300);
   --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.7 0.18 150); /* #10b981 Emerald */
+  --primary: oklch(0.7 0.18 150);
+  /* #10b981 Emerald */
   --primary-foreground: oklch(0.15 0.05 300);
   --secondary: oklch(0.25 0.05 300);
   --secondary-foreground: oklch(0.98 0 0);
@@ -268,6 +282,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -281,7 +296,8 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: var(--background); /* Use CSS variables from the theme */
+  background-color: var(--background);
+  /* Use CSS variables from the theme */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -293,7 +309,8 @@
 
 .preloader .spinner {
   border: 4px solid oklch(var(--foreground) / 0.2);
-  border-top: 4px solid oklch(var(--primary)); /* Use primary color for the spinner */
+  border-top: 4px solid oklch(var(--primary));
+  /* Use primary color for the spinner */
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -310,6 +327,7 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -319,4 +337,40 @@
 #root:not(:empty) .preloader {
   opacity: 0;
   pointer-events: none;
+}
+
+/* ── Custom Scrollbar ─────────────────────────────────────────────────────── */
+/* Webkit (Chrome, Edge, Electron) — thin, themed, adapts to light/dark       */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Radix ScrollArea thumb — matches the webkit style */
+[data-radix-scroll-area-thumb] {
+  background: var(--border) !important;
+  border-radius: 999px;
+}
+
+[data-radix-scroll-area-thumb]:hover {
+  background: var(--muted-foreground) !important;
 }
