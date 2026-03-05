@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { useSettings } from "@/context/SettingsContext";
@@ -59,8 +60,11 @@ export function RecentActivityFeed() {
         },
     });
 
-    // Show the 8 most recent transactions
-    const recent = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+    // Show the 8 most recent transactions (memoized to avoid re-sorting on every render)
+    const recent = useMemo(
+        () => [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
+        [transactions]
+    );
 
     if (isLoading) {
         return (
