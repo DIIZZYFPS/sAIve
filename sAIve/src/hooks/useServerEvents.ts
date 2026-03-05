@@ -20,7 +20,7 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
         ["sankey"],
     ],
     budgets_changed: [["budgets"]],
-    recurring_changed: [["recurring"]],
+    recurring_changed: [["recurring_transactions"]],
     notifications_changed: [["notifications"]],
 };
 
