@@ -25,7 +25,7 @@ class TransactionCategory(str, Enum):
     Transportation = "Transportation"
     Subscriptions  = "Subscriptions"
     Bills          = "Bills"
-    Income         = "income"
+    Income         = "Income"
     Other          = "Other"
 
 

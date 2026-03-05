@@ -104,7 +104,7 @@ def onboard_user(user_id: int, data: OnboardData):
             user_id=user_id,
             amount=data.checking,
             type="income",
-            category="income",
+            category="Income",
             date=current_date.strftime("%Y-%m-%d"),
             recipient="Checking Account"
         )
@@ -116,7 +116,7 @@ def onboard_user(user_id: int, data: OnboardData):
             user_id=user_id,
             amount=data.savings,
             type="income",
-            category="income",
+            category="Income",
             date=current_date.strftime("%Y-%m-%d"),
             recipient="Savings Account"
         )
