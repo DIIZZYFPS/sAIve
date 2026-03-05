@@ -31,18 +31,21 @@ export default function Layout() {
                 <SimulationPanel />
             </div>
 
-            {/* Right AI chat panel — slides in from the right */}
+            {/* Right AI chat panel — always mounted to preserve model + chat history.
+                Width animates to 0 when closed; the component is never unmounted. */}
             {aiEnabled && (
                 <div
                     className={`
-                        flex flex-col shrink-0 overflow-hidden
+                        flex flex-col shrink-0
                         transition-all duration-300 ease-in-out
-                        ${aiChatOpen ? 'w-[320px] opacity-100' : 'w-0 opacity-0'}
+                        ${aiChatOpen ? 'w-[320px]' : 'w-0 overflow-hidden'}
                     `}
                 >
-                    {aiChatOpen && (
+                    {/* Inner wrapper keeps the panel at its natural width even when the 
+                        outer container collapses to w-0, so layout never breaks children */}
+                    <div className="w-[320px] h-full">
                         <AiChatPanel onClose={handleAiClose} />
-                    )}
+                    </div>
                 </div>
             )}
         </div>
