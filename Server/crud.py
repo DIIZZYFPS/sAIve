@@ -527,10 +527,10 @@ def create_debt(debt: DebtCreate) -> Debt:
     conn = create_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO debts (user_id, name, type, balance, total_amount, interest_rate, monthly_payment, start_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO debts (user_id, name, type, balance, total_amount, interest_rate, monthly_payment, start_date, linked_asset_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (debt.user_id, debt.name, debt.type, debt.balance, debt.total_amount,
-          debt.interest_rate, debt.monthly_payment, debt.start_date))
+          debt.interest_rate, debt.monthly_payment, debt.start_date, debt.linked_asset_id))
     conn.commit()
     debt_id = cursor.lastrowid
     conn.close()
@@ -566,10 +566,10 @@ def update_debt(debt_id: int, debt: DebtCreate) -> Debt:
     cursor.execute('''
         UPDATE debts
         SET name = ?, type = ?, balance = ?, total_amount = ?,
-            interest_rate = ?, monthly_payment = ?, start_date = ?
+            interest_rate = ?, monthly_payment = ?, start_date = ?, linked_asset_id = ?
         WHERE id = ?
     ''', (debt.name, debt.type, debt.balance, debt.total_amount,
-          debt.interest_rate, debt.monthly_payment, debt.start_date, debt_id))
+          debt.interest_rate, debt.monthly_payment, debt.start_date, debt.linked_asset_id, debt_id))
     conn.commit()
     conn.close()
     return get_debt(debt_id)
@@ -607,4 +607,73 @@ def _row_to_debt(row) -> Debt:
         interest_rate=row['interest_rate'],
         monthly_payment=row['monthly_payment'],
         start_date=row['start_date'],
+        linked_asset_id=row['linked_asset_id'] if 'linked_asset_id' in row.keys() else None,
+    )
+
+# --- Tracked Assets ---
+
+import models
+
+def create_tracked_asset(asset: models.TrackedAssetCreate) -> models.TrackedAsset:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO tracked_assets (user_id, name, type, value)
+        VALUES (?, ?, ?, ?)
+    ''', (asset.user_id, asset.name, asset.type, asset.value))
+    conn.commit()
+    asset_id = cursor.lastrowid
+    conn.close()
+    return get_tracked_asset(asset_id)
+
+def get_tracked_assets(user_id: int) -> list:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM tracked_assets WHERE user_id = ? ORDER BY id ASC', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [_row_to_tracked_asset(r) for r in rows]
+
+def get_tracked_asset(asset_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM tracked_assets WHERE id = ?', (asset_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return _row_to_tracked_asset(row) if row else None
+
+def update_tracked_asset(asset_id: int, asset: models.TrackedAssetCreate) -> models.TrackedAsset:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE tracked_assets
+        SET name = ?, type = ?, value = ?
+        WHERE id = ?
+    ''', (asset.name, asset.type, asset.value, asset_id))
+    conn.commit()
+    conn.close()
+    return get_tracked_asset(asset_id)
+
+def delete_tracked_asset(asset_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM tracked_assets WHERE id = ?', (asset_id,))
+    conn.commit()
+    conn.close()
+
+def get_total_tracked_assets_value(user_id: int) -> float:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COALESCE(SUM(value), 0) FROM tracked_assets WHERE user_id = ?', (user_id,))
+    total = cursor.fetchone()[0]
+    conn.close()
+    return total
+
+def _row_to_tracked_asset(row) -> models.TrackedAsset:
+    return models.TrackedAsset(
+        id=row['id'],
+        user_id=row['user_id'],
+        name=row['name'],
+        type=row['type'],
+        value=row['value']
     )

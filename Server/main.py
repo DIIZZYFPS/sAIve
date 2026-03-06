@@ -188,7 +188,7 @@ def create_transaction(transaction: models.TransactionCreate):
     crud.create_transaction(transaction)
 
     if debt is not None:
-        is_payment = transaction.category == models.TransactionCategory.Debt_Payment
+        is_payment = transaction.category == models.TransactionCategory.Bills
         if is_payment:
             # Payment reduces debt balance
             crud.update_debt_balance(transaction.debt_id, debt.balance - transaction.amount)
@@ -233,7 +233,7 @@ def delete_transaction(transaction_id: int):
     if transaction.debt_id is not None:
         debt = crud.get_debt(transaction.debt_id)
         if debt:
-            is_payment = transaction.category == models.TransactionCategory.Debt_Payment
+            is_payment = transaction.category == models.TransactionCategory.Bills
             if is_payment:
                 # Payment reduced balance on create, so add back on delete
                 new_balance = debt.balance + transaction.amount
@@ -463,12 +463,14 @@ def update_networth(user_id: int, transaction: Optional[models.TransactionCreate
         raise HTTPException(status_code=404, detail="User not found")
 
     total_debt = crud.get_total_debt_balance(user_id)
+    total_assets = crud.get_total_tracked_assets_value(user_id)
 
     if transaction:
         if transaction.type == "income":
             user.net_worth += transaction.amount
         elif transaction.type == "expense":
             user.net_worth -= transaction.amount
+        user.net_worth += total_assets
         user.net_worth -= total_debt
     elif transactions:
         raw = 0.0
@@ -477,7 +479,7 @@ def update_networth(user_id: int, transaction: Optional[models.TransactionCreate
                 raw += tx.amount
             elif tx.type == "expense":
                 raw -= tx.amount
-        user.net_worth = raw - total_debt
+        user.net_worth = (raw + total_assets) - total_debt
 
     crud.update_user(user_id, user)
 
@@ -1031,6 +1033,55 @@ def get_notifications(user_id: int) -> list:
         for n in notifications
     ]
 
+@app.post("/tracked_assets/", response_model=models.TrackedAsset)
+def create_tracked_asset(asset: models.TrackedAssetCreate):
+    created = crud.create_tracked_asset(asset)
+    
+    # Recalculate net worth immediately incorporating the new equity
+    all_transactions = crud.get_all_transactions()
+    update_networth(asset.user_id, transactions=all_transactions)
+    sse_bus.emit_event("tracked_assets_changed", asset.user_id)
+    sse_bus.emit_event("transactions_changed", asset.user_id) # Triggers front-end net-worth card refetch
+    
+    return created
+
+@app.get("/tracked_assets/{user_id}", response_model=List[models.TrackedAsset])
+def get_tracked_assets(user_id: int):
+    return crud.get_tracked_assets(user_id)
+
+@app.put("/tracked_assets/{asset_id}", response_model=models.TrackedAsset)
+def update_tracked_asset(asset_id: int, asset: models.TrackedAssetCreate):
+    existing = crud.get_tracked_asset(asset_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    updated = crud.update_tracked_asset(asset_id, asset)
+    
+    all_transactions = crud.get_all_transactions()
+    update_networth(asset.user_id, transactions=all_transactions)
+    sse_bus.emit_event("tracked_assets_changed", asset.user_id)
+    sse_bus.emit_event("transactions_changed", asset.user_id)
+    
+    return updated
+
+@app.delete("/tracked_assets/{asset_id}")
+def delete_tracked_asset(asset_id: int):
+    existing = crud.get_tracked_asset(asset_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Asset not found")
+        
+    user_id = existing.user_id
+    crud.delete_tracked_asset(asset_id)
+    
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("tracked_assets_changed", user_id)
+    sse_bus.emit_event("transactions_changed", user_id)
+    
+    return {"detail": "Asset deleted successfully"}
+
+# --- FastAPI MCP Tools ---
+
 @mcp_server.tool()
 def get_debts(user_id: int, debt_type: Optional[str] = None) -> list:
     """Get all debts for a user.
@@ -1119,7 +1170,7 @@ def create_debt(
             user_id=user_id,
             recipient=sanitize(name),
             amount=monthly_payment,
-            category=models.TransactionCategory.Debt_Payment,
+            category=models.TransactionCategory.Bills,
             type=models.TransactionType.expense,
             interval=models.RecurringInterval.monthly,
             start_date=rt_start_date
@@ -1224,6 +1275,103 @@ def delete_debt(debt_id: int, user_id: int) -> str:
     sse_bus.emit_event("debts_changed", user_id)
     
     return f"Successfully deleted debt {debt_id}."
+
+@mcp_server.tool()
+def get_tracked_assets(user_id: int) -> list:
+    """Get all physical tracked assets/equity for a user.
+    Returns a list of dicts representing the assets (real estate, vehicles, etc).
+    """
+    assets = crud.get_tracked_assets(user_id)
+    return [
+        {
+            "id": a.id,
+            "name": a.name,
+            "type": a.type,
+            "value": a.value
+        }
+        for a in assets
+    ]
+
+@mcp_server.tool()
+def add_tracked_asset(
+    user_id: int, 
+    name: str, 
+    asset_type: str, 
+    value: float
+) -> str:
+    """Add a new physical asset (equity) to the user's tracking.
+    asset_type MUST be one of: 'real_estate', 'vehicle', 'investment', 'valuable', 'other'.
+    """
+    try:
+        asset_data = models.TrackedAssetCreate(
+            user_id=user_id,
+            name=sanitize(name),
+            type=asset_type,
+            value=value
+        )
+    except Exception as e:
+        return f"Error: Invalid input — {e}"
+        
+    crud.create_tracked_asset(asset_data)
+    
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("tracked_assets_changed", user_id)
+    sse_bus.emit_event("transactions_changed", user_id) 
+    
+    return f"Successfully created {asset_type} asset '{name}' with estimated value ${value}."
+
+@mcp_server.tool()
+def update_tracked_asset(
+    asset_id: int,
+    user_id: int, 
+    name: str, 
+    asset_type: str, 
+    value: float
+) -> str:
+    """Update an existing tracked asset's details (e.g. updating the market value)."""
+    existing_asset = crud.get_tracked_asset(asset_id)
+    if not existing_asset:
+        return f"Error: Asset {asset_id} not found."
+    if existing_asset.user_id != user_id:
+        return f"Error: Asset {asset_id} does not belong to user {user_id}."
+            
+    try:
+        asset_data = models.TrackedAssetCreate(
+            user_id=user_id,
+            name=sanitize(name),
+            type=asset_type,
+            value=value
+        )
+    except Exception as e:
+        return f"Error: Invalid input — {e}"
+        
+    crud.update_tracked_asset(asset_id, asset_data)
+    
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("tracked_assets_changed", user_id)
+    sse_bus.emit_event("transactions_changed", user_id)
+    
+    return f"Successfully updated asset {asset_id} market value."
+
+@mcp_server.tool()
+def delete_tracked_asset(asset_id: int, user_id: int) -> str:
+    """Delete a tracked asset by its ID."""
+    existing_asset = crud.get_tracked_asset(asset_id)
+    if not existing_asset:
+        return f"Error: Asset {asset_id} not found."
+    if existing_asset.user_id != user_id:
+        return f"Error: Asset {asset_id} does not belong to user {user_id}."
+        
+    crud.delete_tracked_asset(asset_id)
+    
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("tracked_assets_changed", user_id)
+    sse_bus.emit_event("transactions_changed", user_id)
+    
+    return f"Successfully deleted asset {asset_id}."
 
 # Mount the MCP server to the FastAPI app at /mcp
 app.mount("/mcp", mcp_server.sse_app())

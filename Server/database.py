@@ -149,6 +149,25 @@ def create_tables():
     except sqlite3.OperationalError as e:
         if "duplicate column name" not in str(e).lower():
             raise
+            
+    # Create tracked_assets table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tracked_assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('real_estate', 'vehicle', 'investment', 'valuable', 'other')),
+            value REAL NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Migration: add linked_asset_id column to debts if it doesn't exist yet
+    try:
+        cursor.execute('ALTER TABLE debts ADD COLUMN linked_asset_id INTEGER REFERENCES tracked_assets(id)')
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e).lower():
+            raise
 
     conn.commit()
     conn.close()
