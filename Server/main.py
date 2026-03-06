@@ -175,8 +175,27 @@ def get_category_summary(user_id: int):
 # Transaction endpoints
 @app.post("/transactions/")
 def create_transaction(transaction: models.TransactionCreate):
+    # Validate linked debt (if any) before creating the transaction
+    debt = None
+    if transaction.debt_id is not None:
+        debt = crud.get_debt(transaction.debt_id)
+        if debt is None:
+            raise HTTPException(status_code=404, detail="Debt not found")
+        # Ensure the debt belongs to the same user as the transaction
+        if getattr(debt, "user_id", None) != transaction.user_id:
+            raise HTTPException(status_code=400, detail="Debt does not belong to user")
+
     crud.create_transaction(transaction)
 
+    if debt is not None:
+        is_payment = transaction.category == models.TransactionCategory.Debt_Payment
+        if is_payment:
+            # Payment reduces debt balance
+            crud.update_debt_balance(transaction.debt_id, debt.balance - transaction.amount)
+        else:
+            # Charge increases debt balance
+            crud.update_debt_balance(transaction.debt_id, debt.balance + transaction.amount)
+        sse_bus.emit_event("debts_changed", transaction.user_id)
     all_transactions = crud.get_all_transactions()
 
     month_update(transaction.user_id, all_transactions)
@@ -184,6 +203,7 @@ def create_transaction(transaction: models.TransactionCreate):
     update_networth(transaction.user_id, transactions = all_transactions)
     sse_bus.emit_event("transactions_changed", transaction.user_id)
     return {"detail": "Transaction created successfully"}
+
 
 @app.get("/transactions/", response_model=list[models.Transaction])
 def get_all_transactions():
@@ -208,6 +228,21 @@ def delete_transaction(transaction_id: int):
         raise HTTPException(status_code=404, detail="Transaction not found")
     
     user_id = transaction.user_id
+
+    # If this transaction was charged to a debt, reverse the balance change
+    if transaction.debt_id is not None:
+        debt = crud.get_debt(transaction.debt_id)
+        if debt:
+            is_payment = transaction.category == models.TransactionCategory.Debt_Payment
+            if is_payment:
+                # Payment reduced balance on create, so add back on delete
+                new_balance = debt.balance + transaction.amount
+            else:
+                # Charge increased balance on create, so subtract on delete
+                new_balance = debt.balance - transaction.amount
+            crud.update_debt_balance(transaction.debt_id, new_balance)
+            sse_bus.emit_event("debts_changed", user_id)
+
     crud.delete_transaction(transaction_id)
     
     all_transactions = crud.get_all_transactions()
@@ -426,20 +461,23 @@ def update_networth(user_id: int, transaction: Optional[models.TransactionCreate
     user = crud.get_user(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+
+    total_debt = crud.get_total_debt_balance(user_id)
+
     if transaction:
         if transaction.type == "income":
             user.net_worth += transaction.amount
-
         elif transaction.type == "expense":
             user.net_worth -= transaction.amount
+        user.net_worth -= total_debt
     elif transactions:
-        user.net_worth = 0  # Reset net worth for batch processing
-        # Calculate net worth based on all transactions
+        raw = 0.0
         for tx in transactions:
             if tx.type == "income":
-                user.net_worth += tx.amount
+                raw += tx.amount
             elif tx.type == "expense":
-                user.net_worth -= tx.amount
+                raw -= tx.amount
+        user.net_worth = raw - total_debt
 
     crud.update_user(user_id, user)
 
@@ -565,7 +603,60 @@ def organize_assets(user_id: int, transactions: list[models.TransactionCreate]):
 
         crud.create_user_asset(asset)
 
+# --- Debt Endpoints ---
+
+@app.get("/debts/{user_id}", response_model=List[models.Debt])
+def get_debts(user_id: int, type: Optional[str] = None):
+    if type:
+        return crud.get_debts_by_type(user_id, type)
+    return crud.get_debts(user_id)
+
+@app.post("/debts/{user_id}", response_model=models.Debt)
+def create_debt(user_id: int, debt: models.DebtCreate):
+    if debt.user_id != user_id:
+        raise HTTPException(status_code=400, detail="User ID mismatch")
+    created = crud.create_debt(debt)
+    # New debt immediately reduces net worth
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("debts_changed", user_id)
+    return created
+
+@app.put("/debts/{debt_id}", response_model=models.Debt)
+def update_debt(debt_id: int, debt: models.DebtCreate):
+    existing = crud.get_debt(debt_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Debt not found")
+    updated = crud.update_debt(debt_id, debt)
+    all_transactions = crud.get_all_transactions()
+    update_networth(existing.user_id, transactions=all_transactions)
+    sse_bus.emit_event("debts_changed", existing.user_id)
+    return updated
+
+@app.patch("/debts/{debt_id}/balance")
+def patch_debt_balance(debt_id: int, body: models.BalanceUpdate):
+    existing = crud.get_debt(debt_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Debt not found")
+    crud.update_debt_balance(debt_id, body.balance)
+    all_transactions = crud.get_all_transactions()
+    update_networth(existing.user_id, transactions=all_transactions)
+    sse_bus.emit_event("debts_changed", existing.user_id)
+    return {"detail": "Balance updated"}
+
+@app.delete("/debts/{debt_id}")
+def delete_debt(debt_id: int):
+    existing = crud.get_debt(debt_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Debt not found")
+    crud.delete_debt(debt_id)
+    all_transactions = crud.get_all_transactions()
+    update_networth(existing.user_id, transactions=all_transactions)
+    sse_bus.emit_event("debts_changed", existing.user_id)
+    return {"detail": "Debt deleted"}
+
 # --- Notifications Endpoints ---
+
 
 @app.get("/notifications/{user_id}", response_model=List[models.Notification])
 def get_notifications(user_id: int):

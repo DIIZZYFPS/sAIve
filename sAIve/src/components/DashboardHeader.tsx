@@ -6,13 +6,15 @@ import {
   Repeat,
   TrendingUp,
   TrendingDown,
-  Wallet
+  Wallet,
+  CreditCard,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ModeToggle } from '@/components/ModeToggle';
 import {
   Drawer,
   DrawerContent,
+  DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
@@ -86,6 +88,9 @@ const formSchema = z.object({
 
 function DashboardHeader({ pageName }: { pageName: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [chargedToDebtId, setChargedToDebtId] = useState<number | null>(null);
+  const [addCardOpen, setAddCardOpen] = useState(false);
+  const [addCardForm, setAddCardForm] = useState({ name: "", interest_rate: "", monthly_payment: "" });
   const queryClient = useQueryClient();
   const { formatCurrency, currencySymbol, aiEnabled } = useSettings();
   const { isModelLoaded, suggestCategory } = useAi();
@@ -125,6 +130,28 @@ function DashboardHeader({ pageName }: { pageName: string }) {
       const response = await api.get("/notifications/1");
       return response.data;
     },
+  });
+
+  // Fetch credit cards for the "Charged to" selector — distinct key so it
+  // doesn't overwrite the Debts page's full ["debts"] cache.
+  const { data: creditCardDebts = [] } = useQuery({
+    queryKey: ["debts", "credit_card"],
+    queryFn: async () => (await api.get("/debts/1?type=credit_card")).data,
+    enabled: isOpen,
+  });
+
+  const createCardMutation = useMutation({
+    mutationFn: (body: object) => api.post("/debts/1", body),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["debts", "credit_card"] });
+      queryClient.invalidateQueries({ queryKey: ["debts"] });
+      // Auto-select the newly created card
+      if (res.data?.id) setChargedToDebtId(res.data.id);
+      setAddCardOpen(false);
+      setAddCardForm({ name: "", interest_rate: "", monthly_payment: "" });
+      toast.success("Credit card added");
+    },
+    onError: () => toast.error("Failed to add credit card"),
   });
 
   const markNotificationRead = useMutation({
@@ -205,6 +232,10 @@ function DashboardHeader({ pageName }: { pageName: string }) {
       payload.start_date = values.date ? format(values.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
     } else {
       payload.date = values.date ? format(values.date, 'yyyy-MM-dd') : undefined;
+      // Attach credit card debt_id if this is a charge against a card
+      if (chargedToDebtId !== null && values.type === "expense") {
+        payload.debt_id = chargedToDebtId;
+      }
     }
 
     console.log("PAYLOAD START DATE:", payload.start_date);
@@ -214,6 +245,7 @@ function DashboardHeader({ pageName }: { pageName: string }) {
       api.post(endpoint, payload).then(() => {
         queryClient.invalidateQueries(); // invalidate all to be safe, especially if recurring adds a new type
         setIsOpen(false);
+        setChargedToDebtId(null);
         form.reset();
       }),
       {
@@ -434,7 +466,14 @@ function DashboardHeader({ pageName }: { pageName: string }) {
               <DrawerTitle className='text-center mb-7'>Add Transaction</DrawerTitle>
               <Separator className='mb-4' />
 
-              <Card className="glass-card border-border/50 w-full mb-5 ">
+              <Card
+                className="glass-card border-border/50 w-full mb-5 transition-all duration-500"
+                style={{
+                  boxShadow: form.watch("type") === "income"
+                    ? "0 0 0 1px color-mix(in oklch, var(--income) 50%, transparent), 0 0 28px 6px color-mix(in oklch, var(--income) 20%, transparent)"
+                    : "0 0 0 1px color-mix(in oklch, var(--expense) 50%, transparent), 0 0 28px 6px color-mix(in oklch, var(--expense) 20%, transparent)",
+                }}
+              >
                 <CardContent className="pt-4">
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleAddTransaction)} className="space-y-8 w-full grid grid-cols-4 gap-4">
@@ -536,22 +575,194 @@ function DashboardHeader({ pageName }: { pageName: string }) {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Transaction Type</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a transaction type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="income">Income</SelectItem>
-                                  <SelectItem value="expense">Expense</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                {/* Sliding pill toggle */}
+                                <div
+                                  role="group"
+                                  aria-label="Transaction type"
+                                  className="relative flex h-10 w-48 rounded-full bg-muted p-1 cursor-pointer select-none"
+                                  onClick={() =>
+                                    field.onChange(field.value === "income" ? "expense" : "income")
+                                  }
+                                >
+                                  {/* Sliding indicator */}
+                                  <span
+                                    className="absolute top-1 h-8 rounded-full transition-all duration-300 ease-in-out"
+                                    style={{
+                                      width: "calc(50% - 4px)",
+                                      left: field.value === "income" ? "4px" : "calc(50%)",
+                                      backgroundColor: field.value === "income"
+                                        ? "var(--income)"
+                                        : "var(--expense)",
+                                    }}
+                                  />
+                                  {/* Labels */}
+                                  <span
+                                    className={cn(
+                                      "relative z-10 flex-1 flex items-center justify-center text-xs font-semibold transition-colors duration-300",
+                                      field.value === "income" ? "text-white" : "text-muted-foreground"
+                                    )}
+                                  >
+                                    ↑ Income
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      "relative z-10 flex-1 flex items-center justify-center text-xs font-semibold transition-colors duration-300",
+                                      field.value === "expense" ? "text-white" : "text-muted-foreground"
+                                    )}
+                                  >
+                                    ↓ Expense
+                                  </span>
+                                </div>
+                              </FormControl>
                             </FormItem>
                           )}
                         />
                         <Separator className='my-4' />
                       </div>
+
+                      <div>
+                        <FormField
+                          control={form.control}
+                          name="category"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Transaction Category {isSuggesting && <span className="text-[10px] text-muted-foreground ml-1 animate-pulse">✨ AI thinking...</span>}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value} >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a Category" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent side='right'>
+                                  <SelectItem value="Income">Income</SelectItem>
+                                  <SelectItem value="Housing">Housing</SelectItem>
+                                  <SelectItem value="Food">Food</SelectItem>
+                                  <SelectItem value="Transportation">Transportation</SelectItem>
+                                  <SelectItem value="Subscriptions">Subscriptions</SelectItem>
+                                  <SelectItem value="Bills">Bills</SelectItem>
+                                  <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Separator className='my-4' />
+                      </div>
+
+                      {/* CHARGED TO — always shown for non-recurring expenses */}
+                      {form.watch("type") === "expense" && !form.watch("isRecurring") && (
+                        <div className="col-span-2">
+                          <div className="flex flex-col space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-sm font-medium leading-none">Charged to (optional)</label>
+                              {/* Nested Drawer — always visible */}
+                              <Drawer nested open={addCardOpen} onOpenChange={setAddCardOpen}>
+                                <DrawerTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-xs text-pink-400 hover:text-pink-300 px-2 gap-1"
+                                  >
+                                    <CreditCard className="h-3 w-3" />
+                                    + Add Card
+                                  </Button>
+                                </DrawerTrigger>
+                                <DrawerContent className="items-center">
+                                  <DrawerHeader className="text-center">
+                                    <DrawerTitle>Add Credit Card</DrawerTitle>
+                                    <DrawerDescription>Quick-add a card to track its balance.</DrawerDescription>
+                                  </DrawerHeader>
+                                  <div className="w-full max-w-md px-6 pb-4 space-y-4">
+                                    <div className="space-y-1.5">
+                                      <label className="text-sm font-medium">Card Name</label>
+                                      <input
+                                        className="input w-full"
+                                        placeholder='e.g. "Chase Sapphire"'
+                                        value={addCardForm.name}
+                                        onChange={e => setAddCardForm(f => ({ ...f, name: e.target.value }))}
+                                        autoFocus
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="space-y-1.5">
+                                        <label className="text-sm font-medium">APR (%) <span className="text-muted-foreground text-xs">optional</span></label>
+                                        <input
+                                          className="input w-full"
+                                          type="number" min="0" step="0.01"
+                                          placeholder="23.99"
+                                          value={addCardForm.interest_rate}
+                                          onChange={e => setAddCardForm(f => ({ ...f, interest_rate: e.target.value }))}
+                                        />
+                                      </div>
+                                      <div className="space-y-1.5">
+                                        <label className="text-sm font-medium">Monthly Min ($) <span className="text-muted-foreground text-xs">optional</span></label>
+                                        <input
+                                          className="input w-full"
+                                          type="number" min="0" step="0.01"
+                                          placeholder="100"
+                                          value={addCardForm.monthly_payment}
+                                          onChange={e => setAddCardForm(f => ({ ...f, monthly_payment: e.target.value }))}
+                                        />
+                                      </div>
+                                    </div>
+                                    <DrawerFooter className="px-0 pt-2 flex-row justify-end gap-2">
+                                      <Button type="button" variant="outline" onClick={() => setAddCardOpen(false)}>Cancel</Button>
+                                      <Button
+                                        type="button"
+                                        disabled={!addCardForm.name.trim() || createCardMutation.isPending}
+                                        onClick={() => createCardMutation.mutate({
+                                          user_id: 1,
+                                          name: addCardForm.name.trim(),
+                                          type: "credit_card",
+                                          balance: 0,
+                                          total_amount: 0,
+                                          interest_rate: parseFloat(addCardForm.interest_rate) || 0,
+                                          monthly_payment: parseFloat(addCardForm.monthly_payment) || 0,
+                                        })}
+                                      >
+                                        {createCardMutation.isPending ? "Saving…" : "Add Card"}
+                                      </Button>
+                                    </DrawerFooter>
+                                  </div>
+                                </DrawerContent>
+                              </Drawer>
+                            </div>
+
+                            {creditCardDebts.length > 0 ? (
+                              <Select
+                                value={chargedToDebtId !== null ? String(chargedToDebtId) : "none"}
+                                onValueChange={v => setChargedToDebtId(v === "none" ? null : Number(v))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Paying with cash/debit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">
+                                    <span className="text-muted-foreground">Cash / Debit</span>
+                                  </SelectItem>
+                                  {creditCardDebts.map((d: any) => (
+                                    <SelectItem key={d.id} value={String(d.id)}>
+                                      <span className="flex items-center gap-2">
+                                        <CreditCard className="h-3.5 w-3.5 text-pink-400" />
+                                        {d.name}
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <p className="text-xs text-muted-foreground py-1">No cards yet — use "+ Add Card" above.</p>
+                            )}
+                            {chargedToDebtId !== null && (
+                              <p className="text-xs text-muted-foreground">This charge will increase your credit card balance.</p>
+                            )}
+                          </div>
+                          <Separator className="my-4" />
+                        </div>
+                      )}
 
                       {/* RECURRING TOGGLE */}
                       <div className="col-span-2 flex flex-col space-y-4">
@@ -601,36 +812,6 @@ function DashboardHeader({ pageName }: { pageName: string }) {
                             />
                           </div>
                         )}
-                        <Separator className='my-4' />
-                      </div>
-
-                      <div>
-                        <FormField
-                          control={form.control}
-                          name="category"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Transaction Category {isSuggesting && <span className="text-[10px] text-muted-foreground ml-1 animate-pulse">✨ AI thinking...</span>}</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value} >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a Category" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent side='right'>
-                                  <SelectItem value="Income">Income</SelectItem>
-                                  <SelectItem value="Housing">Housing</SelectItem>
-                                  <SelectItem value="Food">Food</SelectItem>
-                                  <SelectItem value="Transportation">Transportation</SelectItem>
-                                  <SelectItem value="Subscriptions">Subscriptions</SelectItem>
-                                  <SelectItem value="Bills">Bills</SelectItem>
-                                  <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
                         <Separator className='my-4' />
                       </div>
                       <Button

@@ -1,5 +1,5 @@
 from database import create_connection
-from models import User, UserAsset, Transaction, TransactionCreate, Budget, BudgetCreate
+from models import User, UserAsset, Transaction, TransactionCreate, Budget, BudgetCreate, Debt, DebtCreate
 
 def create_user(user: User):
     conn = create_connection()
@@ -163,15 +163,16 @@ def create_transaction(transaction: TransactionCreate):
     cursor = conn.cursor()
 
     cursor.execute('''
-        INSERT INTO transactions (user_id, date, amount, category, recipient, type)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO transactions (user_id, date, amount, category, recipient, type, debt_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', (
         transaction.user_id,
         transaction.date,
         transaction.amount,
         transaction.category,
         transaction.recipient,
-        transaction.type
+        transaction.type,
+        transaction.debt_id
     ))
 
     conn.commit()
@@ -188,7 +189,7 @@ def get_transaction(transaction_id: int):
     conn.close()
 
     if row:
-        return Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient'])
+        return Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient'], debt_id=row['debt_id'] if 'debt_id' in row.keys() else None)
     return None
 
 def get_all_transactions():
@@ -205,7 +206,7 @@ def get_all_transactions():
 
     transactions = []
     for row in rows:
-        transactions.append(Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient']))
+        transactions.append(Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient'], debt_id=row['debt_id'] if 'debt_id' in row.keys() else None))
     
     return transactions
 
@@ -227,7 +228,7 @@ def get_transactions_by_month(user_id: int, year: int, month: int):
 
     transactions = []
     for row in rows:
-        transactions.append(Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient']))
+        transactions.append(Transaction(id=row['id'], user_id=row['user_id'], date=row['date'], amount=row['amount'], category=row['category'], type=row['type'], recipient=row['recipient'], debt_id=row['debt_id'] if 'debt_id' in row.keys() else None))
     
     return transactions
 
@@ -503,3 +504,91 @@ def set_budget(budget: BudgetCreate):
 
     conn.commit()
     conn.close()
+
+# --- Debts ---
+
+def create_debt(debt: DebtCreate) -> Debt:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO debts (user_id, name, type, balance, total_amount, interest_rate, monthly_payment, start_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (debt.user_id, debt.name, debt.type, debt.balance, debt.total_amount,
+          debt.interest_rate, debt.monthly_payment, debt.start_date))
+    conn.commit()
+    debt_id = cursor.lastrowid
+    conn.close()
+    return get_debt(debt_id)
+
+def get_debts(user_id: int) -> list:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM debts WHERE user_id = ? ORDER BY id ASC', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [_row_to_debt(r) for r in rows]
+
+def get_debts_by_type(user_id: int, debt_type: str) -> list:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM debts WHERE user_id = ? AND type = ? ORDER BY id ASC', (user_id, debt_type))
+    rows = cursor.fetchall()
+    conn.close()
+    return [_row_to_debt(r) for r in rows]
+
+def get_debt(debt_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM debts WHERE id = ?', (debt_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return _row_to_debt(row) if row else None
+
+def update_debt(debt_id: int, debt: DebtCreate) -> Debt:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE debts
+        SET name = ?, type = ?, balance = ?, total_amount = ?,
+            interest_rate = ?, monthly_payment = ?, start_date = ?
+        WHERE id = ?
+    ''', (debt.name, debt.type, debt.balance, debt.total_amount,
+          debt.interest_rate, debt.monthly_payment, debt.start_date, debt_id))
+    conn.commit()
+    conn.close()
+    return get_debt(debt_id)
+
+def update_debt_balance(debt_id: int, new_balance: float):
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE debts SET balance = ? WHERE id = ?', (max(new_balance, 0), debt_id))
+    conn.commit()
+    conn.close()
+
+def delete_debt(debt_id: int):
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM debts WHERE id = ?', (debt_id,))
+    conn.commit()
+    conn.close()
+
+def get_total_debt_balance(user_id: int) -> float:
+    conn = create_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COALESCE(SUM(balance), 0) FROM debts WHERE user_id = ?', (user_id,))
+    total = cursor.fetchone()[0]
+    conn.close()
+    return total
+
+def _row_to_debt(row) -> Debt:
+    return Debt(
+        id=row['id'],
+        user_id=row['user_id'],
+        name=row['name'],
+        type=row['type'],
+        balance=row['balance'],
+        total_amount=row['total_amount'],
+        interest_rate=row['interest_rate'],
+        monthly_payment=row['monthly_payment'],
+        start_date=row['start_date'],
+    )

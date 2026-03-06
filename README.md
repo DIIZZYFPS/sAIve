@@ -1,6 +1,6 @@
 # sAIve — AI-Powered Budgeting Application
 
-> **Current version: v0.10.1** — See [CHANGELOG](docs/CHANGELOG.md) for the full history.
+> **Current version: v0.12.0** — See [CHANGELOG](docs/CHANGELOG.md) for the full history.
 
 **sAIve** is a privacy-first desktop budgeting application that lets you manage your finances with the help of a fully local AI assistant. Built with a React + TypeScript frontend packaged in Electron and a Python FastAPI backend, all financial data stays on your device.
 
@@ -30,6 +30,12 @@
 ### 📅 Calendar View
 - Monthly calendar with transactions overlaid on their respective dates.
 - Navigate forward and backward through months.
+
+### 💳 Debts & Credit Management
+- **Dedicated Tracking:** Manage distinct non-credit debts (loans, mortgages) alongside active credit cards with detailed APR, payment tracking, and estimated payoff dates.
+- **Payoff Strategy:** View a projected payoff chart showing balance decay over time for your selected strategy.
+- **Integrated Payments:** Create a transaction to instantly reduce your debt balances against your net worth.
+- **Seamless Spending:** Use the dynamically-animated income/expense toggle to effortlessly log transactions. Quickly add and charge expenses directly to new or existing credit cards within the transaction form without breaking flow.
 
 ### 💰 Budget Planning
 - Set per-category spending limits.

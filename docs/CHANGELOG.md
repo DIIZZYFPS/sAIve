@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.12.0] — 2026-03-05 — *Transaction Form Enhancements & Debts Feature Refining*
+
+### Added
+- **Dynamic Transaction Type Toggle** — Replaced the basic "Type" dropdown in the Add Transaction form with an animated sliding pill toggle.
+  - The toggle slides between `↑ Income` and `↓ Expense` with a smooth animation
+  - The entire form card now features an interactive **box-shadow glow** that transitions between green (`--income`) and red (`--expense`) to match the selected transaction type
+- **Quick-Add Credit Card** — A nested sliding drawer has been added directly to the "Charged to" section of the Add Transaction form.
+  - Users can now seamlessly create a new credit card mid-transaction flow without losing their place or form data
+  - Newly created cards are immediately available and automatically selected in the dropdown
+- **Always-Visible "Charged to" Field** — The "Charged to" field and associated "+ Add Card" button are now always visible for expense transactions, even if the user has no existing credit cards on file.
+
+### Changed
+- **Form Layout Reorganization** — Reorganized the Add Transaction form grid to keep the Category field consistently aligned on the second row (`Date | Type | Category`), preventing layout jumps when the conditional "Charged to" section appears.
+- **Cache Isolation logic** — The "Charged to" credit card dropdown in `DashboardHeader` now uses an isolated React Query cache key (`["debts", "credit_card"]`) to prevent collisions with the main Debts page (`["debts"]`), resolving a bug where creating a transaction would clear non-credit-card debts from the Debts page UI.
+- Version bumped: `0.11.0` → `0.12.0`
+
+---
+
 ## [v0.11.0] — 2026-03-05 — *AI Chat Sidebar & Simulation Panel*
 
 ### Added
