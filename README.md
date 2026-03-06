@@ -1,6 +1,6 @@
 # sAIve — AI-Powered Budgeting Application
 
-> **Current version: v0.12.0** — See [CHANGELOG](docs/CHANGELOG.md) for the full history.
+> **Current version: v0.12.2** — See [CHANGELOG](docs/CHANGELOG.md) for the full history.
 
 **sAIve** is a privacy-first desktop budgeting application that lets you manage your finances with the help of a fully local AI assistant. Built with a React + TypeScript frontend packaged in Electron and a Python FastAPI backend, all financial data stays on your device.
 
