@@ -22,7 +22,7 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
     budgets_changed: [["budgets"]],
     recurring_changed: [["recurring_transactions"]],
     notifications_changed: [["notifications"]],
-    debts_changed: [["debts"]],
+    debts_changed: [["debts"], ["debts", "credit_card"]],
 };
 
 /**

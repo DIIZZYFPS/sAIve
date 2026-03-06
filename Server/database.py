@@ -146,8 +146,9 @@ def create_tables():
     # Migration: add debt_id column to transactions if it doesn't exist yet
     try:
         cursor.execute('ALTER TABLE transactions ADD COLUMN debt_id INTEGER REFERENCES debts(id)')
-    except Exception:
-        pass  # Column already exists — safe to ignore
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e).lower():
+            raise
 
     conn.commit()
     conn.close()

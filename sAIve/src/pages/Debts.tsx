@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSettings } from "@/context/SettingsContext";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -247,7 +247,7 @@ function DebtDrawer({
     });
 
     // Reset when initial changes
-    useMemo(() => {
+    useEffect(() => {
         setForm({
             ...EMPTY_FORM, ...(initial ? {
                 name: initial.name,
@@ -361,7 +361,7 @@ function PaymentDrawer({
 }) {
     const [amount, setAmount] = useState("");
 
-    useMemo(() => { setAmount(debt ? String(debt.monthly_payment || "") : ""); }, [debt?.id, open]);
+    useEffect(() => { setAmount(debt ? String(debt.monthly_payment || "") : ""); }, [debt?.id, open]);
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange}>
@@ -450,7 +450,8 @@ const Debts = () => {
         return Array.from({ length: maxLen }, (_, i) => {
             const entry: Record<string, string | number> = { month: allSets.find(s => s[i])![i].month };
             debts.forEach((d, j) => {
-                entry[d.name] = allSets[j][i]?.balance ?? 0;
+                const seriesKey = `debt_${d.id}`;
+                entry[seriesKey] = allSets[j][i]?.balance ?? 0;
             });
             return entry;
         });
@@ -667,7 +668,8 @@ const Debts = () => {
                                         <Line
                                             key={d.id}
                                             type="monotone"
-                                            dataKey={d.name}
+                                            dataKey={`debt_${d.id}`}
+                                            name={d.name}
                                             stroke={CHART_COLORS[i % CHART_COLORS.length]}
                                             strokeWidth={2}
                                             dot={false}
