@@ -26,7 +26,6 @@ class TransactionCategory(str, Enum):
     Subscriptions  = "Subscriptions"
     Bills          = "Bills"
     Income         = "Income"
-    Debt_Payment   = "Debt Payment"
     Other          = "Other"
 
 
@@ -43,6 +42,14 @@ class DebtType(str, Enum):
     student      = "student"
     mortgage     = "mortgage"
     personal     = "personal"
+
+
+class TrackedAssetType(str, Enum):
+    real_estate  = "real_estate"
+    vehicle      = "vehicle"
+    investment   = "investment"
+    valuable     = "valuable"
+    other        = "other"
 
 
 # ── Shared Validators ─────────────────────────────────────────────────────────
@@ -229,6 +236,7 @@ class Debt(BaseModel):
     interest_rate: float
     monthly_payment: float
     start_date: Optional[date] = None
+    linked_asset_id: Optional[int] = None
 
 
 class DebtCreate(BaseModel):
@@ -240,6 +248,7 @@ class DebtCreate(BaseModel):
     interest_rate: float = 0.0
     monthly_payment: float = 0.0
     start_date: Optional[date] = None
+    linked_asset_id: Optional[int] = None
 
     @field_validator("balance", "total_amount", mode="after")
     @classmethod
@@ -256,6 +265,38 @@ class DebtCreate(BaseModel):
         if v is None:
             return v
         return _validate_date(v)
+
+
+class TrackedAsset(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    type: str
+    value: float
+
+
+class TrackedAssetCreate(BaseModel):
+    user_id: int
+    name: str
+    type: TrackedAssetType
+    value: float
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        return _validate_recipient(v)
+
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v: float) -> float:
+        # Can be zero or negative theoretically if underwater, but generally we want it positive
+        # For now, let's just use the general _validate_amount which enforces > 0
+        # If they need to log a negative physical asset (?) they probably shouldn't.
+        if v < 0:
+            raise ValueError("Asset value cannot be negative. Log a debt instead.")
+        if v > MAX_AMOUNT:
+            raise ValueError(f"Value must not exceed ${MAX_AMOUNT:,.0f}")
+        return v
 
 
 class BalanceUpdate(BaseModel):

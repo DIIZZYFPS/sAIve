@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.13.0] — 2026-03-06 — *Portfolio & Asset Tracking*
+
+### Added
+- **Tracked Assets Backend:** Introduced a new `tracked_assets` table to explicitly track physical equity, vehicles, real estate, and investments independent of debts, giving a true picture of positive equity.
+- **Unified Portfolio Page:** Revamped the old "Debts" page completely into a unified Portfolio frontend, featuring Shadcn Tabs to separate Tracked Assets and Liabilities cleanly.
+- **Unified Asset/Debt Creation Flow:** Users can track an asset and toggle "Finance this asset?" to automatically construct the linked Debt profile (e.g. Mortgage/Auto Loan) in the same transaction.
+- **Interactive Interest Charts:** Expanded Debt Cards now feature visually rich, stacked AreaCharts detailing Principal vs Interest accrual over the lifetime of the loan, driven by individual APR and term projections.
+- **Enhanced Net Worth Calculation:** The global `update_networth()` algorithm and the UI Summary bars now sum `Total Assets - Total Liabilities` and natively include liquid cash flow metrics securely integrated with the ledger.
+
+### Changed
+- **Debt Payments Categorization:** Re-mapped internal debt auto-payments and manual adjustments away from the deprecated "Debt Payment" flag to reliably use the standard `Bills` category, keeping the ledger and recurring checks stable.
+- **Recent Activity Sorting:** Cross-table ID collisions in the dashboard feed pushed Assets and Debts below identical-day transactions; custom logic now correctly prioritizes and surfaces top-level Asset/Debt tracked events in the timeline alongside transactions.
+
+---
+
 ## [v0.12.2] — 2026-03-06 — *Debt Flow & Timezone Fixes*
 
 ### Added

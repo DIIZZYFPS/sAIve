@@ -61,6 +61,14 @@ interface Debt {
     start_date?: string;
 }
 
+interface TrackedAsset {
+    id: number;
+    name: string;
+    type: string;
+    value: number;
+    created_at?: string;
+}
+
 export function RecentActivityFeed() {
     const { formatCurrency } = useSettings();
 
@@ -77,15 +85,21 @@ export function RecentActivityFeed() {
         queryFn: async () => (await api.get("/debts/1")).data,
     });
 
-    const isLoading = isLoadingTx || isLoadingDebts;
-    const isError = isErrorTx || isErrorDebts;
+    const { data: assets = [], isLoading: isLoadingAssets, isError: isErrorAssets } = useQuery<TrackedAsset[]>({
+        queryKey: ["tracked_assets"],
+        queryFn: async () => (await api.get("/tracked_assets/1")).data,
+    });
 
-    // Combine transactions and debts into a single unified feed
+    const isLoading = isLoadingTx || isLoadingDebts || isLoadingAssets;
+    const isError = isErrorTx || isErrorDebts || isErrorAssets;
+
+    // Combine transactions, debts, and assets into a single unified feed
     const recent = useMemo(() => {
         const mappedTx = transactions.map(t => ({
             ...t,
             uid: `tx-${t.id}`,
-            isDebt: false
+            isDebt: false,
+            isAsset: false
         }));
 
         const mappedDebts = debts.map(d => ({
@@ -96,18 +110,38 @@ export function RecentActivityFeed() {
             amount: d.balance,
             recipient: `New Debt: ${d.name}`,
             category: "Liability",
-            isDebt: true
+            isDebt: true,
+            isAsset: false
         }));
 
-        return [...mappedTx, ...mappedDebts]
+        const mappedAssets = assets.map(a => ({
+            uid: `asset-${a.id}`,
+            id: a.id,
+            date: a.created_at || format(new Date(), 'yyyy-MM-dd'),
+            type: "asset_created",
+            amount: a.value,
+            recipient: `Tracked Asset: ${a.name}`,
+            category: "Asset",
+            isDebt: false,
+            isAsset: true
+        }));
+
+        return [...mappedTx, ...mappedDebts, ...mappedAssets]
             .sort((a, b) => {
                 const dateCompare = b.date.localeCompare(a.date);
                 if (dateCompare !== 0) return dateCompare;
-                // If dates are identical, sort by ID descending (newest first)
+
+                // If dates are identical, prioritize Assets and Debts over Transactions
+                const aPriority = (a.isAsset || a.isDebt) ? 1 : 0;
+                const bPriority = (b.isAsset || b.isDebt) ? 1 : 0;
+
+                if (aPriority !== bPriority) return bPriority - aPriority;
+
+                // If same type priority, sort by ID descending (newest first within their own table)
                 return b.id - a.id;
             })
             .slice(0, 8);
-    }, [transactions, debts]);
+    }, [transactions, debts, assets]);
 
     if (isLoading) {
         return (
@@ -149,9 +183,14 @@ export function RecentActivityFeed() {
             <div className="flex-1 overflow-y-auto space-y-1 pr-1">
                 {recent.map((item) => {
                     const isDebt = item.isDebt;
-                    const cfg = isDebt
-                        ? { icon: Landmark, color: "text-foreground", badge: "bg-muted text-muted-foreground border-border" }
-                        : ((item.category && CATEGORY_CONFIG[item.category]) ? CATEGORY_CONFIG[item.category] : DEFAULT_CONFIG);
+                    const isAsset = item.isAsset;
+
+                    const cfg = isAsset
+                        ? { icon: Home, color: "text-income", badge: "bg-income/10 text-income border-income/20" }
+                        : isDebt
+                            ? { icon: Landmark, color: "text-foreground", badge: "bg-muted text-muted-foreground border-border" }
+                            : ((item.category && CATEGORY_CONFIG[item.category]) ? CATEGORY_CONFIG[item.category] : DEFAULT_CONFIG);
+
                     const Icon = cfg.icon;
                     const isIncome = item.type === "income";
 
@@ -169,7 +208,7 @@ export function RecentActivityFeed() {
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium leading-tight truncate">{item.recipient}</p>
                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                    {item.category && !isDebt && (
+                                    {item.category && !isDebt && !isAsset && (
                                         <Badge
                                             variant="outline"
                                             className={`text-[10px] px-1.5 py-0 leading-4 border ${cfg.badge}`}
@@ -185,16 +224,24 @@ export function RecentActivityFeed() {
                                             Liability
                                         </Badge>
                                     )}
+                                    {isAsset && (
+                                        <Badge
+                                            variant="outline"
+                                            className={`text-[10px] px-1.5 py-0 leading-4 border ${cfg.badge}`}
+                                        >
+                                            Asset
+                                        </Badge>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Amount + date */}
                             <div className="text-right shrink-0">
-                                <p className={`text-sm font-semibold ${isDebt ? "text-foreground" : (isIncome ? "text-income" : "text-expense")}`}>
-                                    {isDebt ? "" : (isIncome ? "+" : "−")}{formatCurrency(Number(item.amount.toFixed(2)))}
+                                <p className={`text-sm font-semibold ${isDebt || isAsset ? "text-foreground" : (isIncome ? "text-income" : "text-expense")}`}>
+                                    {isDebt || isAsset ? "" : (isIncome ? "+" : "−")}{formatCurrency(Number(item.amount.toFixed(2)))}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-end gap-1">
-                                    {!isDebt && (isIncome
+                                    {!isDebt && !isAsset && (isIncome
                                         ? <TrendingUp className="h-3 w-3 text-income/70" />
                                         : <TrendingDown className="h-3 w-3 text-expense/70" />
                                     )}

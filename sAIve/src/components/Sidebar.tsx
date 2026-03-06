@@ -125,7 +125,7 @@ const Sidebar = ({ aiChatOpen = false, onAiChatToggle }: SidebarProps) => {
         <SidebarItem icon={CreditCard} label="Transactions" to="/transactions" active={location.pathname === '/transactions'} collapsed={collapsed} />
         <SidebarItem icon={PiggyBank} label="Flow" to="/flow" active={location.pathname === '/flow'} collapsed={collapsed} />
         <SidebarItem icon={BarChart3} label="Reports" to="/reports" active={location.pathname === '/reports'} collapsed={collapsed} />
-        <SidebarItem icon={Landmark} label="Debts" to="/debts" active={location.pathname === '/debts'} collapsed={collapsed} />
+        <SidebarItem icon={Landmark} label="Portfolio" to="/portfolio" active={location.pathname === '/portfolio'} collapsed={collapsed} />
 
         {/* AI Chat toggle button */}
         {aiEnabled && (
