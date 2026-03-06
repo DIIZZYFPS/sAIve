@@ -127,5 +127,27 @@ def create_tables():
         )
     ''')
 
+    # Create debts table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS debts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('auto', 'credit_card', 'student', 'mortgage', 'personal')),
+            balance REAL NOT NULL,
+            total_amount REAL NOT NULL,
+            interest_rate REAL NOT NULL DEFAULT 0.0,
+            monthly_payment REAL NOT NULL DEFAULT 0.0,
+            start_date DATE,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # Migration: add debt_id column to transactions if it doesn't exist yet
+    try:
+        cursor.execute('ALTER TABLE transactions ADD COLUMN debt_id INTEGER REFERENCES debts(id)')
+    except Exception:
+        pass  # Column already exists — safe to ignore
+
     conn.commit()
     conn.close()

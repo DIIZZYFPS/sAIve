@@ -10,6 +10,7 @@ import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';
 import Budget from '@/pages/Budget';
 import CalendarPage from '@/pages/CalendarPage';
+import Debts from '@/pages/Debts';
 import NotFound from './pages/NotFount';
 
 function ThemedToaster() {
@@ -31,6 +32,7 @@ function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/budget" element={<Budget />} />
+            <Route path="/debts" element={<Debts />} />
             <Route path="/calendar" element={<CalendarPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />

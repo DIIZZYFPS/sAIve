@@ -26,6 +26,7 @@ class TransactionCategory(str, Enum):
     Subscriptions  = "Subscriptions"
     Bills          = "Bills"
     Income         = "Income"
+    Debt_Payment   = "Debt Payment"
     Other          = "Other"
 
 
@@ -34,6 +35,14 @@ class RecurringInterval(str, Enum):
     weekly  = "weekly"
     monthly = "monthly"
     yearly  = "yearly"
+
+
+class DebtType(str, Enum):
+    auto         = "auto"
+    credit_card  = "credit_card"
+    student      = "student"
+    mortgage     = "mortgage"
+    personal     = "personal"
 
 
 # ── Shared Validators ─────────────────────────────────────────────────────────
@@ -108,6 +117,7 @@ class Transaction(BaseModel):
     amount: float
     category: str          # str (not enum) so existing non-whitelisted rows still deserialise
     type: TransactionType
+    debt_id: Optional[int] = None
 
 
 class TransactionCreate(BaseModel):
@@ -117,6 +127,7 @@ class TransactionCreate(BaseModel):
     amount: float
     category: TransactionCategory
     type: TransactionType
+    debt_id: Optional[int] = None
 
     @field_validator("amount")
     @classmethod
@@ -206,3 +217,46 @@ class BudgetCreate(BaseModel):
     @classmethod
     def validate_amount(cls, v: float) -> float:
         return _validate_amount(v)
+
+
+class Debt(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    type: str
+    balance: float
+    total_amount: float
+    interest_rate: float
+    monthly_payment: float
+    start_date: Optional[date] = None
+
+
+class DebtCreate(BaseModel):
+    user_id: int
+    name: str
+    type: DebtType
+    balance: float
+    total_amount: float
+    interest_rate: float = 0.0
+    monthly_payment: float = 0.0
+    start_date: Optional[date] = None
+
+    @field_validator("balance", "total_amount", mode="before")
+    @classmethod
+    def validate_nonneg(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("balance and total_amount must be non-negative")
+        if v > MAX_AMOUNT:
+            raise ValueError(f"value must not exceed ${MAX_AMOUNT:,.0f}")
+        return v
+
+    @field_validator("start_date", mode="before")
+    @classmethod
+    def validate_start_date(cls, v):
+        if v is None:
+            return v
+        return _validate_date(v)
+
+
+class BalanceUpdate(BaseModel):
+    balance: float
