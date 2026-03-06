@@ -188,7 +188,7 @@ def create_transaction(transaction: models.TransactionCreate):
     crud.create_transaction(transaction)
 
     if debt is not None:
-        is_payment = str(transaction.category) == "Debt Payment"
+        is_payment = transaction.category == models.TransactionCategory.Debt_Payment
         if is_payment:
             # Payment reduces debt balance
             crud.update_debt_balance(transaction.debt_id, debt.balance - transaction.amount)
@@ -233,7 +233,14 @@ def delete_transaction(transaction_id: int):
     if transaction.debt_id is not None:
         debt = crud.get_debt(transaction.debt_id)
         if debt:
-            crud.update_debt_balance(transaction.debt_id, debt.balance - transaction.amount)
+            is_payment = transaction.category == models.TransactionCategory.Debt_Payment
+            if is_payment:
+                # Payment reduced balance on create, so add back on delete
+                new_balance = debt.balance + transaction.amount
+            else:
+                # Charge increased balance on create, so subtract on delete
+                new_balance = debt.balance - transaction.amount
+            crud.update_debt_balance(transaction.debt_id, new_balance)
             sse_bus.emit_event("debts_changed", user_id)
 
     crud.delete_transaction(transaction_id)

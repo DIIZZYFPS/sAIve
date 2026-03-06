@@ -241,7 +241,7 @@ class DebtCreate(BaseModel):
     monthly_payment: float = 0.0
     start_date: Optional[date] = None
 
-    @field_validator("balance", "total_amount", mode="before")
+    @field_validator("balance", "total_amount", mode="after")
     @classmethod
     def validate_nonneg(cls, v: float) -> float:
         if v < 0:

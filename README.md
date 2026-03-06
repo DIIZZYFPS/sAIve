@@ -33,7 +33,7 @@
 
 ### 💳 Debts & Credit Management
 - **Dedicated Tracking:** Manage distinct non-credit debts (loans, mortgages) alongside active credit cards with detailed APR, payment tracking, and estimated payoff dates.
-- **Payoff Strategy:** View projected balance decay over time with Avalanche vs. Snowball visualizations.
+- **Payoff Strategy:** View a projected payoff chart showing balance decay over time for your selected strategy.
 - **Integrated Payments:** Create a transaction to instantly reduce your debt balances against your net worth.
 - **Seamless Spending:** Use the dynamically-animated income/expense toggle to effortlessly log transactions. Quickly add and charge expenses directly to new or existing credit cards within the transaction form without breaking flow.
 
