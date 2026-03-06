@@ -1014,6 +1014,184 @@ def get_notifications(user_id: int) -> list:
         for n in notifications
     ]
 
+@mcp_server.tool()
+def get_debts(user_id: int, debt_type: Optional[str] = None) -> list:
+    """Get all debts for a user.
+    Optionally filter by debt_type (e.g. 'auto', 'credit_card', 'student', 'mortgage', 'personal').
+    Returns a list of dicts representing the debts.
+    """
+    if debt_type:
+        debts = crud.get_debts_by_type(user_id, debt_type)
+    else:
+        debts = crud.get_debts(user_id)
+        
+    return [
+        {
+            "id": d.id,
+            "name": d.name,
+            "type": d.type,
+            "balance": d.balance,
+            "total_amount": d.total_amount,
+            "interest_rate": d.interest_rate,
+            "monthly_payment": d.monthly_payment,
+            "start_date": str(d.start_date) if d.start_date else None
+        }
+        for d in debts
+    ]
+
+@mcp_server.tool()
+def get_credit_cards(user_id: int) -> list:
+    """Convenience tool to get all credit card revolving debts for a user.
+    Returns a list of dicts representing the user's credit card debts.
+    """
+    debts = crud.get_debts_by_type(user_id, "credit_card")
+    return [
+        {
+            "id": d.id,
+            "name": d.name,
+            "balance": d.balance,
+            "total_amount": d.total_amount,
+            "interest_rate": d.interest_rate,
+            "monthly_payment": d.monthly_payment,
+            "start_date": str(d.start_date) if d.start_date else None
+        }
+        for d in debts
+    ]
+
+@mcp_server.tool()
+def create_debt(
+    user_id: int, 
+    name: str, 
+    debt_type: str, 
+    balance: float, 
+    total_amount: float, 
+    interest_rate: float = 0.0, 
+    monthly_payment: float = 0.0, 
+    start_date: Optional[str] = None
+) -> str:
+    """Create a new debt for the user.
+    debt_type MUST be one of: 'auto', 'credit_card', 'student', 'mortgage', 'personal'.
+    start_date must be 'YYYY-MM-DD' if provided.
+    """
+    if start_date:
+        try:
+            datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError:
+            return "Error: start_date must be in YYYY-MM-DD format."
+            
+    try:
+        debt_data = models.DebtCreate(
+            user_id=user_id,
+            name=sanitize(name),
+            type=debt_type,
+            balance=balance,
+            total_amount=total_amount,
+            interest_rate=interest_rate,
+            monthly_payment=monthly_payment,
+            start_date=start_date
+        )
+    except Exception as e:
+        return f"Error: Invalid input — {e}"
+        
+    crud.create_debt(debt_data)
+    
+    # Update net worth since debt reduces net worth
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("debts_changed", user_id)
+    
+    return f"Successfully created {debt_type} debt '{name}' with balance ${balance}."
+
+@mcp_server.tool()
+def update_debt(
+    debt_id: int,
+    user_id: int, 
+    name: str, 
+    debt_type: str, 
+    balance: float, 
+    total_amount: float, 
+    interest_rate: float = 0.0, 
+    monthly_payment: float = 0.0, 
+    start_date: Optional[str] = None
+) -> str:
+    """Update an existing debt's details.
+    debt_type MUST be one of: 'auto', 'credit_card', 'student', 'mortgage', 'personal'.
+    start_date must be 'YYYY-MM-DD' if provided.
+    """
+    existing_debt = crud.get_debt(debt_id)
+    if not existing_debt:
+        return f"Error: Debt {debt_id} not found."
+    if existing_debt.user_id != user_id:
+        return f"Error: Debt {debt_id} does not belong to user {user_id}."
+        
+    if start_date:
+        try:
+            datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError:
+            return "Error: start_date must be in YYYY-MM-DD format."
+            
+    try:
+        debt_data = models.DebtCreate(
+            user_id=user_id,
+            name=sanitize(name),
+            type=debt_type,
+            balance=balance,
+            total_amount=total_amount,
+            interest_rate=interest_rate,
+            monthly_payment=monthly_payment,
+            start_date=start_date
+        )
+    except Exception as e:
+        return f"Error: Invalid input — {e}"
+        
+    crud.update_debt(debt_id, debt_data)
+    
+    # Recalculate net worth
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("debts_changed", user_id)
+    
+    return f"Successfully updated debt {debt_id} ('{name}')."
+
+@mcp_server.tool()
+def update_debt_balance(debt_id: int, user_id: int, balance: float) -> str:
+    """Update only the current balance of an existing debt."""
+    existing_debt = crud.get_debt(debt_id)
+    if not existing_debt:
+        return f"Error: Debt {debt_id} not found."
+    if existing_debt.user_id != user_id:
+        return f"Error: Debt {debt_id} does not belong to user {user_id}."
+        
+    if balance < 0:
+        return "Error: Balance cannot be negative."
+        
+    crud.update_debt_balance(debt_id, balance)
+    
+    # Recalculate net worth 
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("debts_changed", user_id)
+    
+    return f"Successfully updated balance for debt {debt_id} to ${balance}."
+
+@mcp_server.tool()
+def delete_debt(debt_id: int, user_id: int) -> str:
+    """Delete a debt by its ID."""
+    existing_debt = crud.get_debt(debt_id)
+    if not existing_debt:
+        return f"Error: Debt {debt_id} not found."
+    if existing_debt.user_id != user_id:
+        return f"Error: Debt {debt_id} does not belong to user {user_id}."
+        
+    crud.delete_debt(debt_id)
+    
+    # Recalculate net worth since debt is removed
+    all_transactions = crud.get_all_transactions()
+    update_networth(user_id, transactions=all_transactions)
+    sse_bus.emit_event("debts_changed", user_id)
+    
+    return f"Successfully deleted debt {debt_id}."
+
 # Mount the MCP server to the FastAPI app at /mcp
 app.mount("/mcp", mcp_server.sse_app())
 

@@ -5,8 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [v0.12.0] — 2026-03-05 — *Transaction Form Enhancements & Debts Feature Refining*
+## [v0.12.1] — 2026-03-05 — *MCP Debt Tools Exposure*
 
+### Added
+- **MCP Debt Tools** — Exposed debt management functionality to the MCP server for AI access:
+  - `get_debts`: Retrieves a list of all user debts, with optional type filtering.
+  - `get_credit_cards`: Retrieves revolving credit card debts specifically.
+  - `create_debt`: Creates a new debt and updates the user's net worth.
+  - `update_debt` & `update_debt_balance`: Fully update debt details or quickly adjust just the balance.
+  - `delete_debt`: Deletes a debt from the ledger.
+
+---
+
+## [v0.12.0] — 2026-03-05 — *Transaction Form Enhancements & Debts Feature Refining*
 ### Added
 - **Dynamic Transaction Type Toggle** — Replaced the basic "Type" dropdown in the Add Transaction form with an animated sliding pill toggle.
   - The toggle slides between `↑ Income` and `↓ Expense` with a smooth animation
