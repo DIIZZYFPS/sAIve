@@ -138,7 +138,12 @@ export function TransactionsTable({
 
     list.sort((a, b) => {
       let cmp = 0;
-      if (sortField === "date") cmp = a.date.localeCompare(b.date);
+      if (sortField === "date") {
+        cmp = a.date.localeCompare(b.date);
+        if (cmp === 0) {
+          cmp = a.id - b.id; // Secondary sort by ID ascending (sortDir inversion handles desc)
+        }
+      }
       else if (sortField === "recipient") cmp = a.recipient.localeCompare(b.recipient);
       else if (sortField === "amount") cmp = a.amount - b.amount;
       else if (sortField === "type") cmp = a.type.localeCompare(b.type);
@@ -210,12 +215,12 @@ export function TransactionsTable({
               key={t}
               onClick={() => { setTypeFilter(t); setPage(0); }}
               className={`px-3 py-1 rounded-md text-xs font-medium capitalize transition-all ${typeFilter === t
-                  ? t === "income"
-                    ? "bg-income/20 text-income"
-                    : t === "expense"
-                      ? "bg-expense/20 text-expense"
-                      : "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                ? t === "income"
+                  ? "bg-income/20 text-income"
+                  : t === "expense"
+                    ? "bg-expense/20 text-expense"
+                    : "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground"
                 }`}
             >
               {t === "all" ? "All" : t}

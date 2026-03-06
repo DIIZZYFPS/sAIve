@@ -85,7 +85,7 @@ export function RecurringTable() {
         <Card className="glass-card border-border/50 animate-fade-in shadow-xl">
             <CardHeader className="pb-4 border-b border-border/30 mb-4 bg-background/20 rounded-t-xl">
                 <CardTitle className="text-xl flex items-center gap-2">
-                    <RefreshCw className="h-5 w-5 text-primary" /> Active Subscriptions
+                    <RefreshCw className="h-5 w-5 text-primary" /> Recurring Charges
                 </CardTitle>
                 <CardDescription>
                     These transactions are automatically added to your ledger on their interval dates.
@@ -95,7 +95,7 @@ export function RecurringTable() {
                 {recurringTxns.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground w-full flex flex-col items-center bg-background/30 rounded-lg border border-dashed border-border/50">
                         <RefreshCw className="h-10 w-10 mb-4 opacity-20" />
-                        <p className="font-medium text-foreground">No active subscriptions detected.</p>
+                        <p className="font-medium text-foreground">No recurring charges detected.</p>
                         <p className="text-sm mt-1">Create one using the 'Add Transaction' button.</p>
                     </div>
                 ) : (
@@ -145,7 +145,7 @@ export function RecurringTable() {
                                                 className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
                                                 onClick={() => handleDelete(rt.id, rt.recipient)}
                                                 disabled={deleteMutation.isPending}
-                                                title="Cancel Subscription"
+                                                title="Cancel Recurring Charge"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -161,7 +161,7 @@ export function RecurringTable() {
             <Dialog open={!!editingRt} onOpenChange={(open) => !open && setEditingRt(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Edit Subscription</DialogTitle>
+                        <DialogTitle>Edit Recurring Charge</DialogTitle>
                     </DialogHeader>
                     {editingRt && (
                         <div className="space-y-4 py-4">

@@ -10,6 +10,7 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Sun, Moon, Monitor, User, Download, Save, Coins, Bot } from "lucide-react";
+import { format } from "date-fns";
 
 const Settings = () => {
     const { mode, setMode, colorTheme, setColorTheme } = useTheme();
@@ -56,7 +57,7 @@ const Settings = () => {
                 api.get("/user_assets/1/all"),
             ]);
             const exportData = {
-                exportDate: new Date().toISOString(),
+                exportDate: format(new Date(), "yyyy-MM-dd"),
                 transactions: transactions.data,
                 assets: assets.data,
             };
@@ -64,7 +65,7 @@ const Settings = () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `saive-export-${new Date().toISOString().split("T")[0]}.json`;
+            a.download = `saive-export-${format(new Date(), "yyyy-MM-dd")}.json`;
             a.click();
             URL.revokeObjectURL(url);
             toast.success("Data exported successfully!");

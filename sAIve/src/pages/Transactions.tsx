@@ -27,7 +27,7 @@ export default function Transactions() {
                     <div className="flex w-full items-center justify-center mb-6">
                         <TabsList className="grid w-full max-w-[400px] grid-cols-2 p-1 bg-background/50 border border-border/50 rounded-full">
                             <TabsTrigger value="history" className="rounded-full">History</TabsTrigger>
-                            <TabsTrigger value="recurring" className="rounded-full">Subscriptions</TabsTrigger>
+                            <TabsTrigger value="recurring" className="rounded-full">Recurring Charges</TabsTrigger>
                         </TabsList>
                     </div>
 

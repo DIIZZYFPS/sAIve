@@ -337,6 +337,22 @@ def update_recurring_transaction_next_date(rt_id: int, next_date: str):
     conn.commit()
     conn.close()
 
+def advance_recurring_transaction(rt_id: int, old_date: str, new_date: str) -> int:
+    """Atomically updates the advance date. Returns number of rows affected."""
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE recurring_transactions
+        SET next_date = ?
+        WHERE id = ? AND next_date = ?
+    ''', (new_date, rt_id, old_date))
+
+    rows_affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return rows_affected
+
 def update_recurring_transaction(rt_id: int, rt: RecurringTransactionCreate):
     conn = create_connection()
     cursor = conn.cursor()
