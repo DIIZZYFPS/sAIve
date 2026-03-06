@@ -616,6 +616,23 @@ def create_debt(user_id: int, debt: models.DebtCreate):
     if debt.user_id != user_id:
         raise HTTPException(status_code=400, detail="User ID mismatch")
     created = crud.create_debt(debt)
+    
+    # Auto-create recurring transaction for monthly payment
+    if debt.monthly_payment > 0:
+        # Avoid circular validation errors by parsing strings/dates safely
+        start_dt = debt.start_date if debt.start_date else datetime.now().date()
+        rt = models.RecurringTransactionCreate(
+            user_id=user_id,
+            recipient=debt.name,
+            amount=debt.monthly_payment,
+            category=models.TransactionCategory.Bills,
+            type=models.TransactionType.expense,
+            interval=models.RecurringInterval.monthly,
+            start_date=start_dt
+        )
+        crud.create_recurring_transaction(rt)
+        sse_bus.emit_event("recurring_changed", user_id)
+
     # New debt immediately reduces net worth
     all_transactions = crud.get_all_transactions()
     update_networth(user_id, transactions=all_transactions)
@@ -1095,10 +1112,26 @@ def create_debt(
         
     crud.create_debt(debt_data)
     
+    # Auto-create recurring transaction for monthly payment
+    if monthly_payment > 0:
+        rt_start_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else datetime.now().date()
+        rt = models.RecurringTransactionCreate(
+            user_id=user_id,
+            recipient=sanitize(name),
+            amount=monthly_payment,
+            category=models.TransactionCategory.Debt_Payment,
+            type=models.TransactionType.expense,
+            interval=models.RecurringInterval.monthly,
+            start_date=rt_start_date
+        )
+        crud.create_recurring_transaction(rt)
+        sse_bus.emit_event("recurring_changed", user_id)
+    
     # Update net worth since debt reduces net worth
     all_transactions = crud.get_all_transactions()
     update_networth(user_id, transactions=all_transactions)
     sse_bus.emit_event("debts_changed", user_id)
+    sse_bus.emit_event("transactions_changed", user_id) # Triggers front-end net-worth card refetch
     
     return f"Successfully created {debt_type} debt '{name}' with balance ${balance}."
 
@@ -1213,24 +1246,50 @@ async def process_recurring_transactions_loop():
             
             transactions_added = False
             for rt in recurring_txns:
-                # Use a while loop so ALL overdue occurrences are applied in one
-                # pass — e.g. a monthly subscription 3 months overdue gets 3
-                # transactions inserted before we sleep again.
-                next_date = rt.next_date  # track locally; write to DB once at end
-                while next_date <= current_date:
-                    print(f"Applying recurring transaction: {rt.recipient} for {rt.amount} on {next_date}")
-                    # 1. Insert the realized transaction into the ledger
+                # We need to process occurrences safely, even if multiple backends run.
+                # Instead of holding `next_date` in memory, we try to advance the DB
+                # ONE step at a time. If successful, we insert the transaction.
+                
+                db_next_date = rt.next_date
+                
+                while db_next_date <= current_date:
+                    print(f"Applying recurring transaction: {rt.recipient} for {rt.amount} on {db_next_date}")
+                    
+                    # 1. Calculate the next iteration date
+                    if rt.interval == "daily":
+                        advanced_date = db_next_date + relativedelta(days=1)
+                    elif rt.interval == "weekly":
+                        advanced_date = db_next_date + relativedelta(weeks=1)
+                    elif rt.interval == "monthly":
+                        advanced_date = db_next_date + relativedelta(months=1)
+                    elif rt.interval == "yearly":
+                        advanced_date = db_next_date + relativedelta(years=1)
+                    else:
+                        advanced_date = db_next_date + relativedelta(months=1)  # Fallback
+                        
+                    # 2. Try to claim this occurrence in the DB atomically
+                    rows_updated = crud.advance_recurring_transaction(
+                        rt.id, 
+                        db_next_date.strftime("%Y-%m-%d"), 
+                        advanced_date.strftime("%Y-%m-%d")
+                    )
+                    
+                    if rows_updated == 0:
+                        # Another backend already processed this date, skip further processing for this RT in this loop run
+                        break
+                        
+                    # 3. We successfully claimed it! Now insert the transaction
                     new_tx = models.TransactionCreate(
                         user_id=rt.user_id,
                         recipient=rt.recipient,
-                        date=next_date,
+                        date=db_next_date,
                         amount=rt.amount,
                         category=rt.category,
                         type=rt.type
                     )
                     crud.create_transaction(new_tx)
 
-                    # 2. Generate a notification for this occurrence
+                    # 4. Generate a notification for this occurrence
                     new_notif = models.NotificationCreate(
                         user_id=rt.user_id,
                         title="Subscription Paid",
@@ -1240,24 +1299,9 @@ async def process_recurring_transactions_loop():
                         type="system"
                     )
                     crud.create_notification(new_notif)
-
-                    # 3. Advance next_date by one interval
-                    if rt.interval == "daily":
-                        next_date = next_date + relativedelta(days=1)
-                    elif rt.interval == "weekly":
-                        next_date = next_date + relativedelta(weeks=1)
-                    elif rt.interval == "monthly":
-                        next_date = next_date + relativedelta(months=1)
-                    elif rt.interval == "yearly":
-                        next_date = next_date + relativedelta(years=1)
-                    else:
-                        next_date = next_date + relativedelta(months=1)  # Fallback
-
+                    
                     transactions_added = True
-
-                # 4. Write the final next_date to the DB once (outside the while)
-                if next_date != rt.next_date:
-                    crud.update_recurring_transaction_next_date(rt.id, next_date.strftime("%Y-%m-%d"))
+                    db_next_date = advanced_date
 
             # If we added transactions, we need to update assets/net worth
             if transactions_added:

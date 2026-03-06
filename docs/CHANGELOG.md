@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.12.2] — 2026-03-06 — *Debt Flow & Timezone Fixes*
+
+### Added
+- **MCP Debt Live Updates:** creating or updating a debt via MCP now properly emits SSE events to automatically update the dashboard net worth widget in real time without refreshing.
+- **Debt Activity Feed Tracking:** the Recent Activity Feed now naturally aggregates and tracks the origination of new debts on the timeline alongside regular transactions.
+- **Decoupled Excess Payments:** making a manual extra payment towards a debt now posts an independent transaction to the "Bills" category in your ledger, rather than automatically mutating the underlying monthly subscription object.
+
+### Fixed
+- **Race Condition in Recurring Transactions:** a critical bug where running multiple instances of the backend on the same machine could result in duplicate recurring transactions posting to the ledger on the same interval. It is now processed cleanly via an atomic SQLite lock.
+- **Timezone Drift on Transactions:** fixed an issue where adding a transaction after 4:00 PM Pacific Time (UTC rollover window) would push the timestamp a day forward. All transactions are now safely serialized using `date-fns` `format()` instead of strictly `toISOString()`.
+- **Chronological Sub-sort by ID:** all transaction feeds (`TransactionsTable` and `RecentActivityFeed`) now explicitly sub-sort by ID descending when multiple transactions share the exact same date.
+
+---
+
 ## [v0.12.1] — 2026-03-05 — *MCP Debt Tools Exposure*
 
 ### Added
@@ -17,8 +31,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [v0.12.0] — 2026-03-05 — *Transaction Form Enhancements & Debts Feature Refining*
+## [v0.12.0] — 2026-03-05 — *Transaction Form Enhancements & New Debts Feature*
+
 ### Added
+- **Comprehensive Debts Feature** — Added a dedicated debts management section to track various liability types (Credit Card, Auto Loan, Student Loan, Mortgage, Personal).
+  - Features interactive debt cards detailing balance, interest rate, and monthly payment.
+  - Includes a payoff timeline chart that projects the paydown schedule for all debts.
+  - Users can create, edit, delete, and make manual payments towards debts.
 - **Dynamic Transaction Type Toggle** — Replaced the basic "Type" dropdown in the Add Transaction form with an animated sliding pill toggle.
   - The toggle slides between `↑ Income` and `↓ Expense` with a smooth animation
   - The entire form card now features an interactive **box-shadow glow** that transitions between green (`--income`) and red (`--expense`) to match the selected transaction type

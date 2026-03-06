@@ -192,7 +192,7 @@ function DashboardHeader({ pageName }: { pageName: string }) {
     const payload = {
       user_id: lastTransaction.user_id,
       recipient: lastTransaction.recipient,
-      date: new Date().toISOString().slice(0, 10),
+      date: format(new Date(), 'yyyy-MM-dd'),
       amount: lastTransaction.amount,
       category: lastTransaction.category,
       type: lastTransaction.type,

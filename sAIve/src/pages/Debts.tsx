@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSettings } from "@/context/SettingsContext";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -479,17 +480,26 @@ const Debts = () => {
     });
 
     const payMut = useMutation({
-        mutationFn: ({ id, balance }: { id: number; balance: number }) =>
-            api.patch(`/debts/${id}/balance`, { balance }),
+        mutationFn: ({ id, amount, recipient }: { id: number; amount: number; recipient: string }) =>
+            api.post('/transactions/', {
+                user_id: 1,
+                amount: amount,
+                type: "expense",
+                category: "Bills",
+                recipient: recipient,
+                debt_id: id,
+                date: format(new Date(), 'yyyy-MM-dd')
+            }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["debts"] });
             queryClient.invalidateQueries({ queryKey: ["asset"] });
             queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+            queryClient.invalidateQueries({ queryKey: ["transactions"] });
             setPaySheetOpen(false);
             setPayTarget(null);
-            toast.success("Payment applied — balance updated");
+            toast.success("Payment applied — transaction logged");
         },
-        onError: () => toast.error("Failed to apply payment"),
+        onError: () => toast.error("Failed to log payment transaction"),
     });
 
     const handleSave = (form: typeof EMPTY_FORM) => {
@@ -511,8 +521,7 @@ const Debts = () => {
 
     const handlePay = (amount: number) => {
         if (!payTarget) return;
-        const newBalance = Math.max(payTarget.balance - amount, 0);
-        payMut.mutate({ id: payTarget.id, balance: newBalance });
+        payMut.mutate({ id: payTarget.id, amount, recipient: payTarget.name });
     };
 
     const handleEdit = (d: Debt) => { setEditTarget(d); setSheetOpen(true); };

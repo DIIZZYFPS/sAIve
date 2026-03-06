@@ -18,6 +18,7 @@ import {
     Home,
     MoreHorizontal,
     CircleDollarSign,
+    Landmark,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -49,10 +50,21 @@ function relativeDate(dateStr: string): string {
     return format(d, "MMM d");
 }
 
+interface Debt {
+    id: number;
+    name: string;
+    type: string;
+    balance: number;
+    total_amount: number;
+    interest_rate: number;
+    monthly_payment: number;
+    start_date?: string;
+}
+
 export function RecentActivityFeed() {
     const { formatCurrency } = useSettings();
 
-    const { data: transactions = [], isLoading, isError } = useQuery<Transaction[]>({
+    const { data: transactions = [], isLoading: isLoadingTx, isError: isErrorTx } = useQuery<Transaction[]>({
         queryKey: ["transactions"],
         queryFn: async () => {
             const res = await api.get("/transactions/");
@@ -60,11 +72,42 @@ export function RecentActivityFeed() {
         },
     });
 
-    // Show the 8 most recent transactions (memoized to avoid re-sorting on every render)
-    const recent = useMemo(
-        () => [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
-        [transactions]
-    );
+    const { data: debts = [], isLoading: isLoadingDebts, isError: isErrorDebts } = useQuery<Debt[]>({
+        queryKey: ["debts"],
+        queryFn: async () => (await api.get("/debts/1")).data,
+    });
+
+    const isLoading = isLoadingTx || isLoadingDebts;
+    const isError = isErrorTx || isErrorDebts;
+
+    // Combine transactions and debts into a single unified feed
+    const recent = useMemo(() => {
+        const mappedTx = transactions.map(t => ({
+            ...t,
+            uid: `tx-${t.id}`,
+            isDebt: false
+        }));
+
+        const mappedDebts = debts.map(d => ({
+            uid: `debt-${d.id}`,
+            id: d.id,
+            date: d.start_date || format(new Date(), 'yyyy-MM-dd'),
+            type: "debt_created",
+            amount: d.balance,
+            recipient: `New Debt: ${d.name}`,
+            category: "Liability",
+            isDebt: true
+        }));
+
+        return [...mappedTx, ...mappedDebts]
+            .sort((a, b) => {
+                const dateCompare = b.date.localeCompare(a.date);
+                if (dateCompare !== 0) return dateCompare;
+                // If dates are identical, sort by ID descending (newest first)
+                return b.id - a.id;
+            })
+            .slice(0, 8);
+    }, [transactions, debts]);
 
     if (isLoading) {
         return (
@@ -104,14 +147,17 @@ export function RecentActivityFeed() {
         <div className="flex flex-col h-full">
             {/* Feed list */}
             <div className="flex-1 overflow-y-auto space-y-1 pr-1">
-                {recent.map((tx) => {
-                    const cfg = (tx.category && CATEGORY_CONFIG[tx.category]) ? CATEGORY_CONFIG[tx.category] : DEFAULT_CONFIG;
+                {recent.map((item) => {
+                    const isDebt = item.isDebt;
+                    const cfg = isDebt
+                        ? { icon: Landmark, color: "text-foreground", badge: "bg-muted text-muted-foreground border-border" }
+                        : ((item.category && CATEGORY_CONFIG[item.category]) ? CATEGORY_CONFIG[item.category] : DEFAULT_CONFIG);
                     const Icon = cfg.icon;
-                    const isIncome = tx.type === "income";
+                    const isIncome = item.type === "income";
 
                     return (
                         <div
-                            key={tx.id}
+                            key={item.uid}
                             className="flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-muted/30 transition-colors group"
                         >
                             {/* Category icon bubble */}
@@ -121,14 +167,22 @@ export function RecentActivityFeed() {
 
                             {/* Recipient + category */}
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium leading-tight truncate">{tx.recipient}</p>
+                                <p className="text-sm font-medium leading-tight truncate">{item.recipient}</p>
                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                    {tx.category && (
+                                    {item.category && !isDebt && (
                                         <Badge
                                             variant="outline"
                                             className={`text-[10px] px-1.5 py-0 leading-4 border ${cfg.badge}`}
                                         >
-                                            {tx.category}
+                                            {item.category}
+                                        </Badge>
+                                    )}
+                                    {isDebt && (
+                                        <Badge
+                                            variant="outline"
+                                            className={`text-[10px] px-1.5 py-0 leading-4 border bg-expense/10 text-expense border-expense/20`}
+                                        >
+                                            Liability
                                         </Badge>
                                     )}
                                 </div>
@@ -136,15 +190,15 @@ export function RecentActivityFeed() {
 
                             {/* Amount + date */}
                             <div className="text-right shrink-0">
-                                <p className={`text-sm font-semibold ${isIncome ? "text-income" : "text-expense"}`}>
-                                    {isIncome ? "+" : "−"}{formatCurrency(Number(tx.amount.toFixed(2)))}
+                                <p className={`text-sm font-semibold ${isDebt ? "text-foreground" : (isIncome ? "text-income" : "text-expense")}`}>
+                                    {isDebt ? "" : (isIncome ? "+" : "−")}{formatCurrency(Number(item.amount.toFixed(2)))}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-end gap-1">
-                                    {isIncome
-                                        ? <TrendingUp className="h-3 w-3" />
-                                        : <TrendingDown className="h-3 w-3" />
-                                    }
-                                    {relativeDate(tx.date)}
+                                    {!isDebt && (isIncome
+                                        ? <TrendingUp className="h-3 w-3 text-income/70" />
+                                        : <TrendingDown className="h-3 w-3 text-expense/70" />
+                                    )}
+                                    {relativeDate(item.date)}
                                 </p>
                             </div>
                         </div>
