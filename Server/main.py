@@ -175,20 +175,27 @@ def get_category_summary(user_id: int):
 # Transaction endpoints
 @app.post("/transactions/")
 def create_transaction(transaction: models.TransactionCreate):
-    crud.create_transaction(transaction)
-
+    # Validate linked debt (if any) before creating the transaction
+    debt = None
     if transaction.debt_id is not None:
         debt = crud.get_debt(transaction.debt_id)
-        if debt:
-            is_payment = str(transaction.category) == "Debt Payment"
-            if is_payment:
-                # Payment reduces debt balance
-                crud.update_debt_balance(transaction.debt_id, debt.balance - transaction.amount)
-            else:
-                # Charge increases debt balance
-                crud.update_debt_balance(transaction.debt_id, debt.balance + transaction.amount)
-            sse_bus.emit_event("debts_changed", transaction.user_id)
+        if debt is None:
+            raise HTTPException(status_code=404, detail="Debt not found")
+        # Ensure the debt belongs to the same user as the transaction
+        if getattr(debt, "user_id", None) != transaction.user_id:
+            raise HTTPException(status_code=400, detail="Debt does not belong to user")
 
+    crud.create_transaction(transaction)
+
+    if debt is not None:
+        is_payment = str(transaction.category) == "Debt Payment"
+        if is_payment:
+            # Payment reduces debt balance
+            crud.update_debt_balance(transaction.debt_id, debt.balance - transaction.amount)
+        else:
+            # Charge increases debt balance
+            crud.update_debt_balance(transaction.debt_id, debt.balance + transaction.amount)
+        sse_bus.emit_event("debts_changed", transaction.user_id)
     all_transactions = crud.get_all_transactions()
 
     month_update(transaction.user_id, all_transactions)
