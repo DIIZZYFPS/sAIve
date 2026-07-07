@@ -45,13 +45,16 @@
     "axios": "^1.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "electron-updater": "^6.7.3",
     "lucide-react": "^0.511.0",
     "radix-ui": "^1.4.3",
     "react-day-picker": "^8.10.1",
-    "react-dom": "^19.1.0",
+    "react-dom": "19.1.0",
+    "react": "19.1.0",
     "react-hook-form": "^7.56.4",
     "react-markdown": "^10.1.0",
+    "react-plaid-link": "^3.6.0",
     "react-router": "^7.6.0",
     "react-router-dom": "^7.6.0",
     "react-spinners": "^0.17.0",
@@ -63,9 +66,10 @@
     "zod": "^3.25.7"
   },
   "overrides": {
-    "react-is": "^19.1.0",
+    "react-is": "19.1.0",
     "date-fns": "^4.1.0",
-    "react": "^19.1.0"
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

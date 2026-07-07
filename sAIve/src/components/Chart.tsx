@@ -46,7 +46,7 @@ function Chart({ month, year }: ChartProps) {
   useLayoutEffect(() => {
     if (isLoading || !sankeyData || sankeyData.nodes.length === 0) return;
 
-    let root = am5.Root.new("chartdiv");
+    const root = am5.Root.new("chartdiv");
 
     root.setThemes([
       am5themes_Animated.new(root),
@@ -63,7 +63,7 @@ function Chart({ month, year }: ChartProps) {
     });
 
     // Create a Sankey series
-    let series = root.container.children.push(
+    const series = root.container.children.push(
       am5flow.Sankey.new(root, {
         sourceIdField: "from",
         targetIdField: "to",

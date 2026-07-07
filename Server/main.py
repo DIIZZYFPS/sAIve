@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
+import os
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -176,7 +177,6 @@ def get_category_summary(user_id: int):
 @app.post("/transactions/")
 def create_transaction(transaction: models.TransactionCreate):
     # Validate linked debt (if any) before creating the transaction
-    debt = None
     if transaction.debt_id is not None:
         debt = crud.get_debt(transaction.debt_id)
         if debt is None:
@@ -187,20 +187,13 @@ def create_transaction(transaction: models.TransactionCreate):
 
     crud.create_transaction(transaction)
 
-    if debt is not None:
-        is_payment = transaction.category == models.TransactionCategory.Bills
-        if is_payment:
-            # Payment reduces debt balance
-            crud.update_debt_balance(transaction.debt_id, debt.balance - transaction.amount)
-        else:
-            # Charge increases debt balance
-            crud.update_debt_balance(transaction.debt_id, debt.balance + transaction.amount)
+    if transaction.debt_id is not None:
         sse_bus.emit_event("debts_changed", transaction.user_id)
+        
     all_transactions = crud.get_all_transactions()
-
     month_update(transaction.user_id, all_transactions)
     organize_assets(transaction.user_id, all_transactions)
-    update_networth(transaction.user_id, transactions = all_transactions)
+    update_networth(transaction.user_id, transactions=all_transactions)
     sse_bus.emit_event("transactions_changed", transaction.user_id)
     return {"detail": "Transaction created successfully"}
 
@@ -220,30 +213,54 @@ def read_transaction(transaction_id: int):
     return db_transaction
 
 
+@app.put("/transactions/{transaction_id}", response_model=models.Transaction)
+def update_transaction_endpoint(
+    transaction_id: int, 
+    updated: models.TransactionUpdate, 
+    apply_category_rule: bool = False, 
+    apply_debt_rule: bool = False
+):
+    transaction = crud.get_transaction(transaction_id)
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+        
+    if updated.debt_id is not None:
+        debt = crud.get_debt(updated.debt_id)
+        if debt is None:
+            raise HTTPException(status_code=404, detail="Debt not found")
+        if getattr(debt, "user_id", None) != transaction.user_id:
+            raise HTTPException(status_code=400, detail="Debt does not belong to user")
+            
+    res = crud.update_transaction(transaction_id, updated, apply_category_rule, apply_debt_rule)
+    if not res:
+        raise HTTPException(status_code=500, detail="Failed to update transaction")
+        
+    user_id = transaction.user_id
+    all_transactions = crud.get_all_transactions()
+    user_txns = [t for t in all_transactions if t.user_id == user_id]
+    
+    update_networth(user_id, transactions=user_txns)
+    month_update(user_id, user_txns)
+    organize_assets(user_id, user_txns)
+    
+    sse_bus.emit_event("transactions_changed", user_id)
+    if transaction.debt_id is not None or updated.debt_id is not None:
+        sse_bus.emit_event("debts_changed", user_id)
+        
+    return res
+
 @app.delete("/transactions/{transaction_id}")
 def delete_transaction(transaction_id: int):
-    # Get transaction details first to know which user to update
     transaction = crud.get_transaction(transaction_id)
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
     user_id = transaction.user_id
 
-    # If this transaction was charged to a debt, reverse the balance change
-    if transaction.debt_id is not None:
-        debt = crud.get_debt(transaction.debt_id)
-        if debt:
-            is_payment = transaction.category == models.TransactionCategory.Bills
-            if is_payment:
-                # Payment reduced balance on create, so add back on delete
-                new_balance = debt.balance + transaction.amount
-            else:
-                # Charge increased balance on create, so subtract on delete
-                new_balance = debt.balance - transaction.amount
-            crud.update_debt_balance(transaction.debt_id, new_balance)
-            sse_bus.emit_event("debts_changed", user_id)
-
     crud.delete_transaction(transaction_id)
+    
+    if transaction.debt_id is not None:
+        sse_bus.emit_event("debts_changed", user_id)
     
     all_transactions = crud.get_all_transactions()
     user_transactions = [t for t in all_transactions if t.user_id == user_id]
@@ -464,22 +481,49 @@ def update_networth(user_id: int, transaction: Optional[models.TransactionCreate
 
     total_debt = crud.get_total_debt_balance(user_id)
     total_assets = crud.get_total_tracked_assets_value(user_id)
-
-    if transaction:
-        if transaction.type == "income":
-            user.net_worth += transaction.amount
-        elif transaction.type == "expense":
-            user.net_worth -= transaction.amount
-        user.net_worth += total_assets
-        user.net_worth -= total_debt
-    elif transactions:
-        raw = 0.0
-        for tx in transactions:
-            if tx.type == "income":
-                raw += tx.amount
-            elif tx.type == "expense":
-                raw -= tx.amount
-        user.net_worth = (raw + total_assets) - total_debt
+    
+    plaid_accounts = crud.get_plaid_accounts(user_id)
+    if plaid_accounts:
+        plaid_assets = 0.0
+        plaid_liabilities = 0.0
+        for acct in plaid_accounts:
+            acct_type = acct['type']
+            bal = acct['balance_current'] or 0.0
+            if acct_type in ['depository', 'investment', 'brokerage']:
+                plaid_assets += bal
+            elif acct_type in ['credit', 'loan']:
+                plaid_liabilities += bal
+            else:
+                plaid_assets += bal
+                
+        all_txs = transactions or crud.get_all_transactions()
+        manual_net = 0.0
+        for tx in all_txs:
+            if tx.user_id == user_id and not tx.plaid_transaction_id:
+                if tx.type == "income":
+                    manual_net += tx.amount
+                elif tx.type == "expense":
+                    manual_net -= tx.amount
+                    
+        user.net_worth = (plaid_assets - plaid_liabilities) + manual_net + total_assets - total_debt
+    else:
+        if transaction:
+            if transaction.type == "income":
+                user.net_worth += transaction.amount
+            elif transaction.type == "expense":
+                user.net_worth -= transaction.amount
+            user.net_worth += total_assets
+            user.net_worth -= total_debt
+        else:
+            raw = 0.0
+            all_txs = transactions or crud.get_all_transactions()
+            for tx in all_txs:
+                if tx.user_id == user_id:
+                    if tx.type == "income":
+                        raw += tx.amount
+                    elif tx.type == "expense":
+                        raw -= tx.amount
+            user.net_worth = (raw + total_assets) - total_debt
 
     crud.update_user(user_id, user)
 
@@ -702,6 +746,317 @@ def delete_notification(notification_id: int):
     crud.delete_notification(notification_id)
     sse_bus.emit_event("notifications_changed", user_id)
     return {"detail": "Notification deleted"}
+
+# --- Plaid Integration & Key Management ---
+
+import plaid
+from plaid.api import plaid_api
+from plaid.model.link_token_create_request import LinkTokenCreateRequest
+from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
+from plaid.model.products import Products
+from plaid.model.country_code import CountryCode
+from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
+from plaid.model.transactions_sync_request import TransactionsSyncRequest
+
+def get_plaid_client():
+    client_id = crud.get_system_setting("plaid_client_id") or os.environ.get("PLAID_CLIENT_ID")
+    secret = crud.get_system_setting("plaid_secret") or os.environ.get("PLAID_SECRET")
+    env = crud.get_system_setting("plaid_env") or os.environ.get("PLAID_ENV") or "sandbox"
+    
+    if not client_id or not secret:
+        return None
+        
+    if env == "sandbox":
+        host = plaid.Environment.Sandbox
+    elif env == "development":
+        host = plaid.Environment.Development
+    elif env == "production":
+        host = plaid.Environment.Production
+    else:
+        host = plaid.Environment.Sandbox
+        
+    configuration = plaid.Configuration(
+        host=host,
+        api_key={
+            'clientId': client_id,
+            'secret': secret
+        }
+    )
+    api_client = plaid.ApiClient(configuration)
+    return plaid_api.PlaidApi(api_client)
+
+def sync_transactions_for_item(user_id: int, client, access_token: str, db_item_id: int) -> int:
+    cursor = ""
+    has_more = True
+    added_count = 0
+    
+    while has_more:
+        sync_request = TransactionsSyncRequest(
+            access_token=access_token,
+            cursor=cursor,
+            count=100
+        )
+        response = client.transactions_sync(sync_request)
+        
+        for tx in response.get('added', []):
+            tx_date_raw = tx['date']
+            if isinstance(tx_date_raw, str):
+                tx_date = datetime.strptime(tx_date_raw, "%Y-%m-%d").date()
+            elif hasattr(tx_date_raw, 'date'):
+                tx_date = tx_date_raw.date()
+            else:
+                tx_date = tx_date_raw
+                
+            cutoff = datetime.now().date() - timedelta(days=60)
+            if tx_date < cutoff:
+                continue # Skip transactions older than 60 days
+                
+            plaid_amt = float(tx['amount'])
+            if plaid_amt >= 0:
+                tx_type = "expense"
+                amount = plaid_amt
+            else:
+                tx_type = "income"
+                amount = -plaid_amt
+                
+            category_list = tx.get('category', [])
+            plaid_cat = category_list[0] if category_list else "Other"
+            
+            # Simple normalization to match sAIve defaults
+            mapped_cat = plaid_cat
+            if "food" in plaid_cat.lower() or "restaurant" in plaid_cat.lower():
+                mapped_cat = "Food"
+            elif "travel" in plaid_cat.lower() or "taxi" in plaid_cat.lower() or "gas" in plaid_cat.lower():
+                mapped_cat = "Transportation"
+            elif "bill" in plaid_cat.lower() or "utilities" in plaid_cat.lower():
+                mapped_cat = "Bills"
+            elif "subscription" in plaid_cat.lower():
+                mapped_cat = "Subscriptions"
+            elif "rent" in plaid_cat.lower() or "mortgage" in plaid_cat.lower():
+                mapped_cat = "Housing"
+            elif "income" in plaid_cat.lower() or "payroll" in plaid_cat.lower() or "transfer" in plaid_cat.lower() and tx_type == "income":
+                mapped_cat = "Income"
+            
+            recipient = tx.get('merchant_name') or tx.get('name') or "Unknown Merchant"
+            
+            new_tx = models.TransactionCreate(
+                user_id=user_id,
+                recipient=sanitize(recipient),
+                date=tx_date.strftime("%Y-%m-%d") if hasattr(tx_date, 'strftime') else str(tx_date),
+                amount=amount,
+                category=mapped_cat,
+                type=tx_type,
+                plaid_transaction_id=tx['transaction_id'],
+                plaid_account_id=tx['account_id']
+            )
+            created = crud.create_transaction(new_tx)
+            if created:
+                added_count += 1
+                
+        cursor = response['next_cursor']
+        has_more = response['has_more']
+        
+    return added_count
+
+@app.post("/plaid/config")
+def save_plaid_config(config: models.PlaidConfig):
+    crud.save_system_setting("plaid_client_id", config.client_id)
+    crud.save_system_setting("plaid_secret", config.secret)
+    crud.save_system_setting("plaid_env", config.env)
+    return {"status": "success", "message": "Plaid configurations updated successfully."}
+
+@app.get("/plaid/config")
+def check_plaid_config():
+    client_id = crud.get_system_setting("plaid_client_id") or os.environ.get("PLAID_CLIENT_ID")
+    secret = crud.get_system_setting("plaid_secret") or os.environ.get("PLAID_SECRET")
+    env = crud.get_system_setting("plaid_env") or os.environ.get("PLAID_ENV") or "sandbox"
+    return {
+        "is_configured": bool(client_id and secret),
+        "env": env
+    }
+
+@app.post("/plaid/create_link_token")
+def create_link_token(user_id: int = 1):
+    client = get_plaid_client()
+    if not client:
+        raise HTTPException(status_code=400, detail="Plaid is not configured.")
+        
+    try:
+        request = LinkTokenCreateRequest(
+            products=[Products('transactions')],
+            client_name="sAIve Client",
+            country_codes=[CountryCode('US')],
+            language='en',
+            user=LinkTokenCreateRequestUser(
+                client_user_id=str(user_id)
+            )
+        )
+        response = client.link_token_create(request)
+        return {"link_token": response['link_token']}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create link token: {str(e)}")
+
+@app.post("/plaid/exchange_public_token")
+def exchange_public_token(payload: models.PlaidExchangeToken, user_id: int = 1):
+    client = get_plaid_client()
+    if not client:
+        raise HTTPException(status_code=400, detail="Plaid client is unconfigured.")
+        
+    try:
+        exchange_request = ItemPublicTokenExchangeRequest(
+            public_token=payload.public_token
+        )
+        exchange_response = client.item_public_token_exchange(exchange_request)
+        access_token = exchange_response['access_token']
+        item_id = exchange_response['item_id']
+        
+        # Try to get institution details
+        item_request = plaid.model.item_get_request.ItemGetRequest(access_token=access_token)
+        item_response = client.item_get(item_request)
+        institution_id = item_response['item']['institution_id']
+        
+        institution_name = "Linked Institution"
+        if institution_id:
+            try:
+                inst_request = plaid.model.institutions_get_by_id_request.InstitutionsGetByIdRequest(
+                    institution_id=institution_id,
+                    country_codes=[CountryCode('US')]
+                )
+                inst_response = client.institutions_get_by_id(inst_request)
+                institution_name = inst_response['institution']['name']
+            except Exception:
+                pass
+                
+        db_item_id = crud.create_plaid_item(user_id, access_token, item_id, institution_name)
+        
+        # Fetch accounts
+        accounts_request = plaid.model.accounts_get_request.AccountsGetRequest(access_token=access_token)
+        accounts_response = client.accounts_get(accounts_request)
+        
+        for account in accounts_response['accounts']:
+            balances = account.get('balances', {})
+            crud.upsert_plaid_account(
+                plaid_item_id=db_item_id,
+                account_id=account['account_id'],
+                name=account['name'],
+                mask=account.get('mask'),
+                acct_type=str(account['type']),
+                subtype=str(account.get('subtype')),
+                balance_available=balances.get('available'),
+                balance_current=balances.get('current'),
+                balance_limit=balances.get('limit')
+            )
+            
+        # 60 day initial transaction sync
+        sync_transactions_for_item(user_id, client, access_token, db_item_id)
+        
+        # Calculate states
+        all_transactions = crud.get_all_transactions()
+        user_txns = [t for t in all_transactions if t.user_id == user_id]
+        update_networth(user_id, transactions=user_txns)
+        month_update(user_id, user_txns)
+        organize_assets(user_id, user_txns)
+        
+        sse_bus.emit_event("transactions_changed", user_id)
+        return {"status": "success", "institution_name": institution_name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to exchange public token: {str(e)}")
+
+@app.post("/plaid/sync")
+def sync_plaid_transactions_endpoint(user_id: int = 1):
+    client = get_plaid_client()
+    if not client:
+        raise HTTPException(status_code=400, detail="Plaid client is unconfigured.")
+        
+    items = crud.get_plaid_items(user_id)
+    if not items:
+        return {"status": "success", "synced_items": 0, "transactions_added": 0}
+        
+    total_added = 0
+    for item in items:
+        try:
+            added = sync_transactions_for_item(user_id, client, item['access_token'], item['id'])
+            total_added += added
+            
+            # Sync balances
+            accounts_request = plaid.model.accounts_get_request.AccountsGetRequest(access_token=item['access_token'])
+            accounts_response = client.accounts_get(accounts_request)
+            for account in accounts_response['accounts']:
+                balances = account.get('balances', {})
+                crud.upsert_plaid_account(
+                    plaid_item_id=item['id'],
+                    account_id=account['account_id'],
+                    name=account['name'],
+                    mask=account.get('mask'),
+                    acct_type=str(account['type']),
+                    subtype=str(account.get('subtype')),
+                    balance_available=balances.get('available'),
+                    balance_current=balances.get('current'),
+                    balance_limit=balances.get('limit')
+                )
+        except Exception as e:
+            crud.update_plaid_item_status(item['item_id'], 'error')
+            print(f"Error syncing Plaid item {item['item_id']}: {e}")
+            
+    if total_added > 0:
+        all_transactions = crud.get_all_transactions()
+        user_txns = [t for t in all_transactions if t.user_id == user_id]
+        update_networth(user_id, transactions=user_txns)
+        month_update(user_id, user_txns)
+        organize_assets(user_id, user_txns)
+        
+    sse_bus.emit_event("transactions_changed", user_id)
+    return {"status": "success", "synced_items": len(items), "transactions_added": total_added}
+
+@app.get("/plaid/accounts")
+def get_plaid_accounts_endpoint(user_id: int = 1):
+    rows = crud.get_plaid_accounts(user_id)
+    return [
+        {
+            "id": r["id"],
+            "account_id": r["account_id"],
+            "name": r["name"],
+            "mask": r["mask"],
+            "type": r["type"],
+            "subtype": r["subtype"],
+            "balance_available": r["balance_available"],
+            "balance_current": r["balance_current"],
+            "balance_limit": r["balance_limit"],
+            "institution_name": r["institution_name"],
+            "item_id": r["item_id"]
+        }
+        for r in rows
+    ]
+
+@app.delete("/plaid/item/{item_id}")
+def delete_plaid_item_endpoint(item_id: str, user_id: int = 1):
+    crud.delete_plaid_item(user_id, item_id)
+    
+    # Recalculate states
+    all_transactions = crud.get_all_transactions()
+    user_txns = [t for t in all_transactions if t.user_id == user_id]
+    update_networth(user_id, transactions=user_txns)
+    month_update(user_id, user_txns)
+    organize_assets(user_id, user_txns)
+    
+    sse_bus.emit_event("transactions_changed", user_id)
+    return {"status": "success", "message": f"Bank connection {item_id} successfully removed."}
+
+# --- Dynamic Category Management ---
+
+@app.get("/categories")
+def get_categories_endpoint():
+    return crud.get_categories()
+
+@app.post("/categories")
+def create_category_endpoint(category: models.CategoryCreate):
+    crud.create_category(category.name, category.color or 'muted')
+    return {"status": "success", "message": f"Category {category.name} created."}
+
+@app.delete("/categories/{name}")
+def delete_category_endpoint(name: str):
+    crud.delete_category(name)
+    return {"status": "success", "message": f"Category {name} deleted."}
 
 # --- MCP Server Integration ---
 from mcp.server.fastmcp import FastMCP
@@ -1372,6 +1727,86 @@ def delete_tracked_asset(asset_id: int, user_id: int) -> str:
     sse_bus.emit_event("transactions_changed", user_id)
     
     return f"Successfully deleted asset {asset_id}."
+
+@mcp_server.tool()
+def sync_plaid_transactions(user_id: int) -> str:
+    """Sync Plaid bank transactions on-demand and fetch updated balances."""
+    try:
+        res = sync_plaid_transactions_endpoint(user_id)
+        return f"Plaid sync complete: synced {res['synced_items']} bank connection(s), imported {res['transactions_added']} new transaction(s)."
+    except Exception as e:
+        return f"Error syncing Plaid: {str(e)}"
+
+@mcp_server.tool()
+def get_plaid_accounts(user_id: int) -> list:
+    """Get all linked bank accounts (like Discover, Navy Federal) and their current balances."""
+    try:
+        return get_plaid_accounts_endpoint(user_id)
+    except Exception as e:
+        return [{"error": f"Failed to retrieve accounts: {str(e)}"}]
+
+@mcp_server.tool()
+def get_plaid_insights(user_id: int) -> dict:
+    """Analyze and summarize spending outflows and income inflows across linked bank accounts over the last 60 days."""
+    try:
+        accounts = get_plaid_accounts_endpoint(user_id)
+        
+        # Calculate cash flow over the last 60 days
+        all_transactions = crud.get_all_transactions()
+        user_txns = [t for t in all_transactions if t.user_id == user_id]
+        
+        cutoff = datetime.now().date() - timedelta(days=60)
+        recent_txns = []
+        for t in user_txns:
+            try:
+                t_date = t.date
+                if isinstance(t_date, str):
+                    t_date = datetime.strptime(t_date.split(" ")[0], "%Y-%m-%d").date()
+                elif hasattr(t_date, 'date'):
+                    t_date = t_date.date()
+                if t_date >= cutoff:
+                    recent_txns.append(t)
+            except Exception:
+                pass
+        
+        total_income = 0.0
+        total_expense = 0.0
+        categories = defaultdict(float)
+        plaid_accounts_txns = defaultdict(list)
+        
+        for t in recent_txns:
+            if t.plaid_account_id:
+                if t.type == "income":
+                    total_income += t.amount
+                else:
+                    total_expense += t.amount
+                    categories[t.category] += t.amount
+                plaid_accounts_txns[t.plaid_account_id].append(t)
+                
+        # Group accounts
+        acct_summary = []
+        for acct in accounts:
+            acct_id = acct['account_id']
+            txs = plaid_accounts_txns.get(acct_id, [])
+            inflow = sum(tx.amount for tx in txs if tx.type == "income")
+            outflow = sum(tx.amount for tx in txs if tx.type == "expense")
+            acct_summary.append({
+                "name": f"{acct['institution_name']} - {acct['name']}",
+                "current_balance": acct['balance_current'],
+                "60d_inflow": round(inflow, 2),
+                "60d_outflow": round(outflow, 2)
+            })
+            
+        return {
+            "period": "Last 60 Days",
+            "total_income": round(total_income, 2),
+            "total_spending": round(total_expense, 2),
+            "net_flow": round(total_income - total_expense, 2),
+            "top_categories": {k: round(v, 2) for k, v in sorted(categories.items(), key=lambda x: x[1], reverse=True)},
+            "accounts": acct_summary
+        }
+    except Exception as e:
+        return {"error": f"Failed to compute insights: {str(e)}"}
 
 # Mount the MCP server to the FastAPI app at /mcp
 app.mount("/mcp", mcp_server.sse_app())

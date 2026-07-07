@@ -1,17 +1,17 @@
-import require$$1$4, { app, ipcMain, dialog, BrowserWindow, shell, net } from "electron";
-import require$$1 from "fs";
+import require$$1$3, { app, ipcMain, dialog, BrowserWindow, shell, net } from "electron";
+import fs$1 from "fs";
 import require$$0 from "constants";
 import require$$0$1 from "stream";
 import require$$4 from "util";
 import require$$5 from "assert";
-import require$$1$1 from "path";
-import require$$1$5, { spawn } from "child_process";
+import require$$1 from "path";
+import require$$1$4, { spawn } from "child_process";
 import require$$0$2 from "events";
 import require$$0$3 from "crypto";
-import require$$1$2 from "tty";
+import require$$1$1 from "tty";
 import require$$2 from "os";
 import require$$2$1, { fileURLToPath } from "url";
-import require$$1$3 from "string_decoder";
+import require$$1$2 from "string_decoder";
 import require$$14 from "zlib";
 import require$$4$1 from "http";
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
@@ -458,7 +458,7 @@ var hasRequiredGracefulFs;
 function requireGracefulFs() {
   if (hasRequiredGracefulFs) return gracefulFs;
   hasRequiredGracefulFs = 1;
-  var fs2 = require$$1;
+  var fs2 = fs$1;
   var polyfills2 = requirePolyfills();
   var legacy = requireLegacyStreams();
   var clone = requireClone();
@@ -933,7 +933,7 @@ var hasRequiredUtils$1;
 function requireUtils$1() {
   if (hasRequiredUtils$1) return utils$1;
   hasRequiredUtils$1 = 1;
-  const path = require$$1$1;
+  const path = require$$1;
   utils$1.checkPath = function checkPath(pth) {
     if (process.platform === "win32") {
       const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(path.parse(pth).root, ""));
@@ -1041,7 +1041,7 @@ function requireStat() {
   if (hasRequiredStat) return stat;
   hasRequiredStat = 1;
   const fs2 = /* @__PURE__ */ requireFs();
-  const path = require$$1$1;
+  const path = require$$1;
   const util2 = require$$4;
   function getStats(src2, dest, opts) {
     const statFunc = opts.dereference ? (file2) => fs2.stat(file2, { bigint: true }) : (file2) => fs2.lstat(file2, { bigint: true });
@@ -1172,7 +1172,7 @@ function requireCopy$1() {
   if (hasRequiredCopy$1) return copy_1;
   hasRequiredCopy$1 = 1;
   const fs2 = requireGracefulFs();
-  const path = require$$1$1;
+  const path = require$$1;
   const mkdirs2 = requireMkdirs().mkdirs;
   const pathExists = requirePathExists().pathExists;
   const utimesMillis = requireUtimes().utimesMillis;
@@ -1369,7 +1369,7 @@ function requireCopySync() {
   if (hasRequiredCopySync) return copySync_1;
   hasRequiredCopySync = 1;
   const fs2 = requireGracefulFs();
-  const path = require$$1$1;
+  const path = require$$1;
   const mkdirsSync = requireMkdirs().mkdirsSync;
   const utimesMillisSync = requireUtimes().utimesMillisSync;
   const stat2 = /* @__PURE__ */ requireStat();
@@ -1515,7 +1515,7 @@ function requireRimraf() {
   if (hasRequiredRimraf) return rimraf_1;
   hasRequiredRimraf = 1;
   const fs2 = requireGracefulFs();
-  const path = require$$1$1;
+  const path = require$$1;
   const assert = require$$5;
   const isWindows = process.platform === "win32";
   function defaults(options) {
@@ -1773,7 +1773,7 @@ function requireEmpty() {
   hasRequiredEmpty = 1;
   const u = requireUniversalify().fromPromise;
   const fs2 = /* @__PURE__ */ requireFs();
-  const path = require$$1$1;
+  const path = require$$1;
   const mkdir = /* @__PURE__ */ requireMkdirs();
   const remove = /* @__PURE__ */ requireRemove();
   const emptyDir = u(async function emptyDir2(dir) {
@@ -1811,7 +1811,7 @@ function requireFile() {
   if (hasRequiredFile) return file;
   hasRequiredFile = 1;
   const u = requireUniversalify().fromCallback;
-  const path = require$$1$1;
+  const path = require$$1;
   const fs2 = requireGracefulFs();
   const mkdir = /* @__PURE__ */ requireMkdirs();
   function createFile(file2, callback) {
@@ -1873,7 +1873,7 @@ function requireLink() {
   if (hasRequiredLink) return link;
   hasRequiredLink = 1;
   const u = requireUniversalify().fromCallback;
-  const path = require$$1$1;
+  const path = require$$1;
   const fs2 = requireGracefulFs();
   const mkdir = /* @__PURE__ */ requireMkdirs();
   const pathExists = requirePathExists().pathExists;
@@ -1934,7 +1934,7 @@ var hasRequiredSymlinkPaths;
 function requireSymlinkPaths() {
   if (hasRequiredSymlinkPaths) return symlinkPaths_1;
   hasRequiredSymlinkPaths = 1;
-  const path = require$$1$1;
+  const path = require$$1;
   const fs2 = requireGracefulFs();
   const pathExists = requirePathExists().pathExists;
   function symlinkPaths(srcpath, dstpath, callback) {
@@ -2046,7 +2046,7 @@ function requireSymlink() {
   if (hasRequiredSymlink) return symlink;
   hasRequiredSymlink = 1;
   const u = requireUniversalify().fromCallback;
-  const path = require$$1$1;
+  const path = require$$1;
   const fs2 = /* @__PURE__ */ requireFs();
   const _mkdirs = /* @__PURE__ */ requireMkdirs();
   const mkdirs2 = _mkdirs.mkdirs;
@@ -2171,7 +2171,7 @@ function requireJsonfile$1() {
   try {
     _fs = requireGracefulFs();
   } catch (_) {
-    _fs = require$$1;
+    _fs = fs$1;
   }
   const universalify2 = requireUniversalify();
   const { stringify, stripBom } = requireUtils();
@@ -2257,7 +2257,7 @@ function requireOutputFile() {
   hasRequiredOutputFile = 1;
   const u = requireUniversalify().fromCallback;
   const fs2 = requireGracefulFs();
-  const path = require$$1$1;
+  const path = require$$1;
   const mkdir = /* @__PURE__ */ requireMkdirs();
   const pathExists = requirePathExists().pathExists;
   function outputFile(file2, data, encoding, callback) {
@@ -2341,7 +2341,7 @@ function requireMove$1() {
   if (hasRequiredMove$1) return move_1;
   hasRequiredMove$1 = 1;
   const fs2 = requireGracefulFs();
-  const path = require$$1$1;
+  const path = require$$1;
   const copy2 = requireCopy().copy;
   const remove = requireRemove().remove;
   const mkdirp = requireMkdirs().mkdirp;
@@ -2412,7 +2412,7 @@ function requireMoveSync() {
   if (hasRequiredMoveSync) return moveSync_1;
   hasRequiredMoveSync = 1;
   const fs2 = requireGracefulFs();
-  const path = require$$1$1;
+  const path = require$$1;
   const copySync = requireCopy().copySync;
   const removeSync = requireRemove().removeSync;
   const mkdirpSync = requireMkdirs().mkdirpSync;
@@ -3104,7 +3104,7 @@ function requireSupportsColor() {
   if (hasRequiredSupportsColor) return supportsColor_1;
   hasRequiredSupportsColor = 1;
   const os = require$$2;
-  const tty = require$$1$2;
+  const tty = require$$1$1;
   const hasFlag2 = requireHasFlag();
   const { env } = process;
   let flagForceColor;
@@ -3217,7 +3217,7 @@ function requireNode() {
   if (hasRequiredNode) return node.exports;
   hasRequiredNode = 1;
   (function(module, exports) {
-    const tty = require$$1$2;
+    const tty = require$$1$1;
     const util2 = require$$4;
     exports.init = init;
     exports.log = log2;
@@ -3473,7 +3473,7 @@ function requireHttpExecutor() {
   httpExecutor.safeStringifyJson = safeStringifyJson;
   const crypto_1 = require$$0$3;
   const debug_12 = requireSrc();
-  const fs_1 = require$$1;
+  const fs_1 = fs$1;
   const stream_1 = require$$0$1;
   const url_1 = require$$2$1;
   const CancellationToken_1 = requireCancellationToken();
@@ -4484,7 +4484,7 @@ function requireSax() {
       SAXStream.prototype.write = function(data) {
         if (typeof Buffer === "function" && typeof Buffer.isBuffer === "function" && Buffer.isBuffer(data)) {
           if (!this._decoder) {
-            var SD = require$$1$3.StringDecoder;
+            var SD = require$$1$2.StringDecoder;
             this._decoder = new SD("utf8");
           }
           data = this._decoder.write(data);
@@ -11366,10 +11366,10 @@ function requireDownloadedUpdateHelper() {
   DownloadedUpdateHelper.DownloadedUpdateHelper = void 0;
   DownloadedUpdateHelper.createTempUpdateFile = createTempUpdateFile;
   const crypto_1 = require$$0$3;
-  const fs_1 = require$$1;
+  const fs_1 = fs$1;
   const isEqual = requireLodash_isequal();
   const fs_extra_1 = /* @__PURE__ */ requireLib();
-  const path = require$$1$1;
+  const path = require$$1;
   let DownloadedUpdateHelper$1 = class DownloadedUpdateHelper {
     constructor(cacheDir) {
       this.cacheDir = cacheDir;
@@ -11528,7 +11528,7 @@ function requireAppAdapter() {
   hasRequiredAppAdapter = 1;
   Object.defineProperty(AppAdapter, "__esModule", { value: true });
   AppAdapter.getAppCacheDir = getAppCacheDir;
-  const path = require$$1$1;
+  const path = require$$1;
   const os_1 = require$$2;
   function getAppCacheDir() {
     const homedir = (0, os_1.homedir)();
@@ -11550,10 +11550,10 @@ function requireElectronAppAdapter() {
   hasRequiredElectronAppAdapter = 1;
   Object.defineProperty(ElectronAppAdapter, "__esModule", { value: true });
   ElectronAppAdapter.ElectronAppAdapter = void 0;
-  const path = require$$1$1;
+  const path = require$$1;
   const AppAdapter_1 = requireAppAdapter();
   let ElectronAppAdapter$1 = class ElectronAppAdapter {
-    constructor(app2 = require$$1$4.app) {
+    constructor(app2 = require$$1$3.app) {
       this.app = app2;
     }
     whenReady() {
@@ -11602,7 +11602,7 @@ function requireElectronHttpExecutor() {
     const builder_util_runtime_1 = requireOut();
     exports.NET_SESSION_NAME = "electron-updater";
     function getNetSession() {
-      return require$$1$4.session.fromPartition(exports.NET_SESSION_NAME, {
+      return require$$1$3.session.fromPartition(exports.NET_SESSION_NAME, {
         cache: false
       });
     }
@@ -11643,7 +11643,7 @@ function requireElectronHttpExecutor() {
         if (this.cachedSession == null) {
           this.cachedSession = getNetSession();
         }
-        const request = require$$1$4.net.request({
+        const request = require$$1$3.net.request({
           ...options,
           session: this.cachedSession
         });
@@ -12466,7 +12466,7 @@ function requirePrivateGitHubProvider() {
   PrivateGitHubProvider.PrivateGitHubProvider = void 0;
   const builder_util_runtime_1 = requireOut();
   const js_yaml_1 = requireJsYaml();
-  const path = require$$1$1;
+  const path = require$$1;
   const url_1 = require$$2$1;
   const util_1 = requireUtil();
   const GitHubProvider_1 = requireGitHubProvider();
@@ -12740,7 +12740,7 @@ function requireDataSplitter() {
   DataSplitter.DataSplitter = void 0;
   DataSplitter.copyData = copyData;
   const builder_util_runtime_1 = requireOut();
-  const fs_1 = require$$1;
+  const fs_1 = fs$1;
   const stream_1 = require$$0$1;
   const downloadPlanBuilder_1 = requireDownloadPlanBuilder();
   const DOUBLE_CRLF = Buffer.from("\r\n\r\n");
@@ -13142,7 +13142,7 @@ function requireDifferentialDownloader() {
   DifferentialDownloader.DifferentialDownloader = void 0;
   const builder_util_runtime_1 = requireOut();
   const fs_extra_1 = /* @__PURE__ */ requireLib();
-  const fs_1 = require$$1;
+  const fs_1 = fs$1;
   const DataSplitter_1 = requireDataSplitter();
   const url_1 = require$$2$1;
   const downloadPlanBuilder_1 = requireDownloadPlanBuilder();
@@ -13453,7 +13453,7 @@ function requireAppUpdater() {
   const fs_extra_1 = /* @__PURE__ */ requireLib();
   const js_yaml_1 = requireJsYaml();
   const lazy_val_1 = requireMain$1();
-  const path = require$$1$1;
+  const path = require$$1;
   const semver_1 = requireSemver();
   const DownloadedUpdateHelper_1 = requireDownloadedUpdateHelper();
   const ElectronAppAdapter_1 = requireElectronAppAdapter();
@@ -13660,7 +13660,7 @@ function requireAppUpdater() {
         }
         void it.downloadPromise.then(() => {
           const notificationContent = AppUpdater2.formatDownloadNotification(it.updateInfo.version, this.app.name, downloadNotification);
-          new require$$1$4.Notification(notificationContent).show();
+          new require$$1$3.Notification(notificationContent).show();
         });
         return it;
       });
@@ -14072,7 +14072,7 @@ function requireBaseUpdater() {
   hasRequiredBaseUpdater = 1;
   Object.defineProperty(BaseUpdater, "__esModule", { value: true });
   BaseUpdater.BaseUpdater = void 0;
-  const child_process_1 = require$$1$5;
+  const child_process_1 = require$$1$4;
   const AppUpdater_1 = requireAppUpdater();
   let BaseUpdater$1 = class BaseUpdater extends AppUpdater_1.AppUpdater {
     constructor(options, app2) {
@@ -14085,7 +14085,7 @@ function requireBaseUpdater() {
       const isInstalled = this.install(isSilent, isSilent ? isForceRunAfter : this.autoRunAppAfterInstall);
       if (isInstalled) {
         setImmediate(() => {
-          require$$1$4.autoUpdater.emit("before-quit-for-update");
+          require$$1$3.autoUpdater.emit("before-quit-for-update");
           this.app.quit();
         });
       } else {
@@ -14248,10 +14248,10 @@ function requireAppImageUpdater() {
   Object.defineProperty(AppImageUpdater, "__esModule", { value: true });
   AppImageUpdater.AppImageUpdater = void 0;
   const builder_util_runtime_1 = requireOut();
-  const child_process_1 = require$$1$5;
+  const child_process_1 = require$$1$4;
   const fs_extra_1 = /* @__PURE__ */ requireLib();
-  const fs_1 = require$$1;
-  const path = require$$1$1;
+  const fs_1 = fs$1;
+  const path = require$$1;
   const BaseUpdater_1 = requireBaseUpdater();
   const FileWithEmbeddedBlockMapDifferentialDownloader_1 = requireFileWithEmbeddedBlockMapDifferentialDownloader();
   const Provider_1 = requireProvider();
@@ -14676,17 +14676,17 @@ function requireMacUpdater() {
   MacUpdater.MacUpdater = void 0;
   const builder_util_runtime_1 = requireOut();
   const fs_extra_1 = /* @__PURE__ */ requireLib();
-  const fs_1 = require$$1;
-  const path = require$$1$1;
+  const fs_1 = fs$1;
+  const path = require$$1;
   const http_1 = require$$4$1;
   const AppUpdater_1 = requireAppUpdater();
   const Provider_1 = requireProvider();
-  const child_process_1 = require$$1$5;
+  const child_process_1 = require$$1$4;
   const crypto_1 = require$$0$3;
   let MacUpdater$1 = class MacUpdater extends AppUpdater_1.AppUpdater {
     constructor(options, app2) {
       super(options, app2);
-      this.nativeUpdater = require$$1$4.autoUpdater;
+      this.nativeUpdater = require$$1$3.autoUpdater;
       this.squirrelDownloadedUpdate = false;
       this.nativeUpdater.on("error", (it) => {
         this._logger.warn(it);
@@ -14917,9 +14917,9 @@ function requireWindowsExecutableCodeSignatureVerifier() {
   Object.defineProperty(windowsExecutableCodeSignatureVerifier, "__esModule", { value: true });
   windowsExecutableCodeSignatureVerifier.verifySignature = verifySignature;
   const builder_util_runtime_1 = requireOut();
-  const child_process_1 = require$$1$5;
+  const child_process_1 = require$$1$4;
   const os = require$$2;
-  const path = require$$1$1;
+  const path = require$$1;
   function preparePowerShellExec(command, timeout) {
     const executable = `set "PSModulePath=" & chcp 65001 >NUL & powershell.exe`;
     const args = ["-NoProfile", "-NonInteractive", "-InputFormat", "None", "-Command", command];
@@ -15031,7 +15031,7 @@ function requireNsisUpdater() {
   Object.defineProperty(NsisUpdater, "__esModule", { value: true });
   NsisUpdater.NsisUpdater = void 0;
   const builder_util_runtime_1 = requireOut();
-  const path = require$$1$1;
+  const path = require$$1;
   const BaseUpdater_1 = requireBaseUpdater();
   const FileWithEmbeddedBlockMapDifferentialDownloader_1 = requireFileWithEmbeddedBlockMapDifferentialDownloader();
   const types_1 = requireTypes();
@@ -15153,7 +15153,7 @@ function requireNsisUpdater() {
         if (errorCode === "UNKNOWN" || errorCode === "EACCES") {
           callUsingElevation();
         } else if (errorCode === "ENOENT") {
-          require$$1$4.shell.openPath(installerPath).catch((err) => this.dispatchError(err));
+          require$$1$3.shell.openPath(installerPath).catch((err) => this.dispatchError(err));
         } else {
           this.dispatchError(e);
         }
@@ -15212,7 +15212,7 @@ function requireMain() {
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NsisUpdater = exports.MacUpdater = exports.RpmUpdater = exports.PacmanUpdater = exports.DebUpdater = exports.AppImageUpdater = exports.Provider = exports.NoOpLogger = exports.AppUpdater = exports.BaseUpdater = void 0;
     const fs_extra_1 = /* @__PURE__ */ requireLib();
-    const path = require$$1$1;
+    const path = require$$1;
     var BaseUpdater_1 = requireBaseUpdater();
     Object.defineProperty(exports, "BaseUpdater", { enumerable: true, get: function() {
       return BaseUpdater_1.BaseUpdater;
@@ -15299,9 +15299,9 @@ function requireMain() {
 }
 var mainExports = requireMain();
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = require$$1$1.dirname(__filename);
-const logFilePath = require$$1$1.join(app.getPath("userData"), "app.log");
-const logStream = require$$1.createWriteStream(logFilePath, { flags: "a" });
+const __dirname = require$$1.dirname(__filename);
+const logFilePath = require$$1.join(app.getPath("userData"), "app.log");
+const logStream = fs$1.createWriteStream(logFilePath, { flags: "a" });
 const log = (message) => {
   const timestamp2 = (/* @__PURE__ */ new Date()).toISOString();
   const logMessage = `[${timestamp2}] ${message.toString().trim()}
@@ -15325,16 +15325,16 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: require$$1$1.join(__dirname, "preload.js"),
+      preload: require$$1.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false
     },
     autoHideMenuBar: true,
-    icon: app.isPackaged ? require$$1$1.join(__dirname, "../dist/icon.png") : require$$1$1.join(__dirname, "../public/icon.png")
+    icon: app.isPackaged ? require$$1.join(__dirname, "../dist/icon.png") : require$$1.join(__dirname, "../public/icon.png")
   });
   mainWindow.maximize();
   const devUrl = "http://localhost:5173/";
-  const prodPath = require$$1$1.join(__dirname, "../dist/index.html");
+  const prodPath = require$$1.join(__dirname, "../dist/index.html");
   if (app.isPackaged) {
     mainWindow.loadFile(prodPath);
   } else {
@@ -15352,10 +15352,10 @@ const startBackend = () => {
     let cwd;
     if (app.isPackaged) {
       const binaryName = process.platform === "win32" ? "sAIve-backend.exe" : "sAIve-backend";
-      executable = require$$1$1.join(process.resourcesPath, "backend", binaryName);
+      executable = require$$1.join(process.resourcesPath, "backend", binaryName);
       args = [];
-      cwd = require$$1$1.join(process.resourcesPath, "backend");
-      if (!require$$1.existsSync(executable)) {
+      cwd = require$$1.join(process.resourcesPath, "backend");
+      if (!fs$1.existsSync(executable)) {
         const errorMessage = `Backend binary not found at: ${executable}`;
         console.error(errorMessage);
         dialog.showErrorBox("Backend Error", errorMessage);
@@ -15363,9 +15363,17 @@ const startBackend = () => {
         return;
       }
     } else {
-      executable = "python";
+      cwd = require$$1.join(__dirname, "..", "..", "Server");
+      const venvPythonWin = require$$1.join(cwd, "venv", "Scripts", "python.exe");
+      const venvPythonUnix = require$$1.join(cwd, "venv", "bin", "python");
+      if (process.platform === "win32" && fs$1.existsSync(venvPythonWin)) {
+        executable = venvPythonWin;
+      } else if (fs$1.existsSync(venvPythonUnix)) {
+        executable = venvPythonUnix;
+      } else {
+        executable = "python";
+      }
       args = ["main.py"];
-      cwd = require$$1$1.join(__dirname, "..", "..", "Server");
     }
     console.log(`Starting backend: ${executable} ${args.join(" ")} in ${cwd}`);
     const env = { ...process.env };

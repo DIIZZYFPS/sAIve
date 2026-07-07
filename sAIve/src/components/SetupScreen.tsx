@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bot, Check, Info, Loader2, ArrowRight, ShieldCheck, Wallet, Landmark, TrendingUp } from "lucide-react";
+import { Bot, Check, Info, Loader2, ArrowRight, ShieldCheck, Wallet, Landmark, TrendingUp, Lock, Sparkles } from "lucide-react";
 import { Loader } from "./Loader";
 import api from "@/lib/api";
+import { usePlaidLink } from "react-plaid-link";
 
 export function SetupScreen() {
     const {
@@ -32,6 +33,88 @@ export function SetupScreen() {
     // Step 3 state
     const [isSettingUpAi, setIsSettingUpAi] = useState(false);
 
+    // Plaid step states
+    const [plaidConfigured, setPlaidConfigured] = useState(false);
+    const [plaidClientId, setPlaidClientId] = useState("");
+    const [plaidSecret, setPlaidSecret] = useState("");
+    const [plaidEnv, setPlaidEnv] = useState("sandbox");
+    const [linkToken, setLinkToken] = useState<string | null>(null);
+    const [plaidError, setPlaidError] = useState("");
+    const [isSavingPlaidKeys, setIsSavingPlaidKeys] = useState(false);
+    const [plaidLinkedSuccess, setPlaidLinkedSuccess] = useState(false);
+    const [linkedInstName, setLinkedInstName] = useState("");
+    const [isLinking, setIsLinking] = useState(false);
+
+    // Dynamic configuration fetch when stepping into Plaid Setup
+    useEffect(() => {
+        if (step === 25) {
+            checkPlaidConfig();
+        }
+    }, [step]);
+
+    const checkPlaidConfig = async () => {
+        try {
+            const res = await api.get("/plaid/config");
+            if (res.data.is_configured) {
+                setPlaidConfigured(true);
+                const tokenRes = await api.post("/plaid/create_link_token");
+                setLinkToken(tokenRes.data.link_token);
+            }
+        } catch (e) {
+            console.error("Failed to fetch Plaid config:", e);
+        }
+    };
+
+    const handleSavePlaidConfig = async () => {
+        if (!plaidClientId || !plaidSecret) {
+            setPlaidError("Client ID and Secret are required.");
+            return;
+        }
+        setIsSavingPlaidKeys(true);
+        setPlaidError("");
+        try {
+            await api.post("/plaid/config", {
+                client_id: plaidClientId,
+                secret: plaidSecret,
+                env: plaidEnv
+            });
+            setPlaidConfigured(true);
+            const tokenRes = await api.post("/plaid/create_link_token");
+            setLinkToken(tokenRes.data.link_token);
+        } catch (e: any) {
+            setPlaidError(e.response?.data?.detail || "Failed to save configuration.");
+        } finally {
+            setIsSavingPlaidKeys(false);
+        }
+    };
+
+    const handlePreFillSandbox = () => {
+        setPlaidClientId("sandbox_client_id");
+        setPlaidSecret("sandbox_secret");
+        setPlaidEnv("sandbox");
+        setPlaidError("");
+    };
+
+    const { open, ready } = usePlaidLink({
+        token: linkToken || "",
+        onSuccess: async (public_token) => {
+            setIsLinking(true);
+            setPlaidError("");
+            try {
+                const res = await api.post("/plaid/exchange_public_token", { public_token });
+                setLinkedInstName(res.data.institution_name);
+                setPlaidLinkedSuccess(true);
+            } catch (err: any) {
+                setPlaidError(err.response?.data?.detail || "Token exchange failed.");
+            } finally {
+                setIsLinking(false);
+            }
+        },
+        onExit: (err) => {
+            if (err) setPlaidError(err.message);
+        }
+    });
+
     const handleNextStep = () => {
         setStep(prev => prev + 1);
     };
@@ -52,7 +135,12 @@ export function SetupScreen() {
                 income: incVal
             });
             setIsSubmitting(false);
-            setStep(3);
+            
+            if ((window as any).electronAPI) {
+                setStep(25);
+            } else {
+                setStep(3);
+            }
         } catch (e) {
             console.error("Failed to onboard:", e);
             setIsSubmitting(false);
@@ -211,6 +299,126 @@ export function SetupScreen() {
                             <Button className="w-full text-base h-11" onClick={handleSaveBaseline} disabled={isSubmitting}>
                                 {isSubmitting ? <Loader2 className="animate-spin w-4 h-4" /> : "Save Balances"}
                             </Button>
+                        </CardFooter>
+                    </div>
+                )}
+
+                {/* ---------- STEP 2.5: PLAID BANK LINK ---------- */}
+                {step === 25 && (
+                    <div className="animate-in slide-in-from-right-8 fade-in duration-500">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                    <Landmark className="h-6 w-6 text-primary" />
+                                </div>
+                                <CardTitle className="text-xl">Bank Connections (Optional)</CardTitle>
+                            </div>
+                            <CardDescription>
+                                Securely link your Navy Federal, Discover, or other bank accounts to automatically sync transactions.
+                            </CardDescription>
+                        </CardHeader>
+
+                        <CardContent className="space-y-4">
+                            {!plaidConfigured ? (
+                                <div className="space-y-3">
+                                    <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 p-3 rounded-lg text-xs flex gap-2">
+                                        <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                                        <span>Plaid developer keys are needed for bank integrations. You can sign up free on Plaid's website or use sandbox mode keys.</span>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="plaid-client-id" className="text-xs">Plaid Client ID</Label>
+                                        <Input
+                                            id="plaid-client-id"
+                                            placeholder="Paste Client ID..."
+                                            value={plaidClientId}
+                                            onChange={(e) => setPlaidClientId(e.target.value)}
+                                            className="bg-background/50 h-9 text-sm"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="plaid-secret" className="text-xs">Plaid Secret</Label>
+                                        <Input
+                                            id="plaid-secret"
+                                            type="password"
+                                            placeholder="Paste Secret..."
+                                            value={plaidSecret}
+                                            onChange={(e) => setPlaidSecret(e.target.value)}
+                                            className="bg-background/50 h-9 text-sm"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs">Environment</Label>
+                                        <Select value={plaidEnv} onValueChange={setPlaidEnv}>
+                                            <SelectTrigger className="bg-background/50 h-9 text-sm">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="sandbox">Sandbox (Simulated)</SelectItem>
+                                                <SelectItem value="development">Development (Free/Live Accounts)</SelectItem>
+                                                <SelectItem value="production">Production (Real App)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {plaidError && <p className="text-xs text-destructive font-medium">{plaidError}</p>}
+
+                                    <div className="flex gap-2 pt-2">
+                                        <Button variant="outline" size="sm" className="flex-1 h-9" onClick={handlePreFillSandbox}>
+                                            Pre-fill Sandbox
+                                        </Button>
+                                        <Button size="sm" className="flex-1 h-9" onClick={handleSavePlaidConfig} disabled={isSavingPlaidKeys}>
+                                            {isSavingPlaidKeys ? <Loader2 className="animate-spin w-4 h-4" /> : "Save Keys"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : plaidLinkedSuccess ? (
+                                <div className="flex flex-col items-center py-6 text-center space-y-4">
+                                    <div className="bg-emerald-500/10 p-3 rounded-full text-emerald-500">
+                                        <Check className="h-8 w-8" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-foreground text-lg">Bank Linked Successfully!</h4>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Connected to <span className="font-semibold text-primary">{linkedInstName}</span>. Imported past 60 days of transaction data.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center py-8 text-center space-y-4">
+                                    <div className="bg-primary/10 p-3 rounded-full text-primary animate-pulse">
+                                        <Sparkles className="h-8 w-8" />
+                                    </div>
+                                    <div className="max-w-[280px]">
+                                        <h4 className="font-semibold text-foreground">Keys Saved Successfully</h4>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Your local environment is now Plaid-enabled. Press the button below to sign in to Discover or Navy Federal.
+                                        </p>
+                                    </div>
+                                    {plaidError && <p className="text-xs text-destructive font-medium">{plaidError}</p>}
+                                    <Button
+                                        onClick={() => open()}
+                                        disabled={!ready || isLinking}
+                                        className="h-11 w-full text-sm font-semibold"
+                                    >
+                                        {isLinking ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
+                                        Connect Bank Account
+                                    </Button>
+                                </div>
+                            )}
+                        </CardContent>
+
+                        <CardFooter className="flex justify-between border-t border-border/30 pt-4">
+                            <Button variant="ghost" size="sm" onClick={() => setStep(3)}>
+                                Skip / Do Later
+                            </Button>
+                            {plaidLinkedSuccess && (
+                                <Button size="sm" onClick={() => setStep(3)}>
+                                    Next: Setup AI <ArrowRight className="ml-1 w-4 h-4" />
+                                </Button>
+                            )}
                         </CardFooter>
                     </div>
                 )}

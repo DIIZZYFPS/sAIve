@@ -14,8 +14,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerClose,
+} from "@/components/ui/drawer";
 
 import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
 import {
   TrendingUp,
   TrendingDown,
@@ -28,6 +38,7 @@ import {
   SlidersHorizontal,
   Trash2,
   Inbox,
+  Pencil,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -99,6 +110,79 @@ export function TransactionsTable({
 
   const { formatCurrency } = useSettings();
   const { mutateAsync: deleteTransaction } = useDeleteTransaction();
+
+  const queryClient = useQueryClient();
+
+  const { data: debts = [] } = useQuery<any[]>({
+    queryKey: ["debts"],
+    queryFn: async () => {
+      const res = await api.get("/debts/1");
+      return res.data;
+    }
+  });
+
+  const { data: categoriesList = [] } = useQuery<any[]>({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const res = await api.get("/categories");
+      return res.data;
+    }
+  });
+
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editRecipient, setEditRecipient] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editDebtId, setEditDebtId] = useState<number | null>(null);
+  const [editAmount, setEditAmount] = useState(0);
+  const [editDate, setEditDate] = useState("");
+  const [applyCategoryRule, setApplyCategoryRule] = useState(false);
+  const [applyDebtRule, setApplyDebtRule] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleStartEdit = (t: Transaction) => {
+    setEditingTransaction(t);
+    setEditRecipient(t.recipient);
+    setEditCategory(t.category || "Other");
+    setEditDebtId((t as any).debt_id || null);
+    setEditAmount(t.amount);
+    setEditDate(t.date.slice(0, 10));
+    setApplyCategoryRule(false);
+    setApplyDebtRule(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTransaction) return;
+    setIsSaving(true);
+    try {
+      await api.put(`/transactions/${editingTransaction.id}`, {
+        recipient: editRecipient,
+        category: editCategory,
+        amount: Number(editAmount),
+        date: editDate,
+        debt_id: editDebtId || null
+      }, {
+        params: {
+          apply_category_rule: applyCategoryRule,
+          apply_debt_rule: applyDebtRule
+        }
+      });
+      toast.success("Transaction updated successfully");
+      setEditingTransaction(null);
+      
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["debts"] });
+      queryClient.invalidateQueries({ queryKey: ["asset"] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["statsHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["statsCategories"] });
+      queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+      refetch();
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || "Failed to update transaction.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDelete = (id: number) => {
     toast.promise(deleteTransaction(id), {
@@ -394,14 +478,24 @@ export function TransactionsTable({
                           </span>
                         </TableCell>
                         <TableCell className="pr-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-40 hover:opacity-100 hover:text-destructive transition-all"
-                            onClick={() => handleDelete(transaction.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-40 hover:opacity-100 hover:text-primary transition-all"
+                              onClick={() => handleStartEdit(transaction)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-40 hover:opacity-100 hover:text-destructive transition-all"
+                              onClick={() => handleDelete(transaction.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -444,6 +538,143 @@ export function TransactionsTable({
           </div>
         </div>
       )}
+      <Drawer open={!!editingTransaction} onOpenChange={(open) => !open && setEditingTransaction(null)}>
+        <DrawerContent className="items-center">
+          <div className="w-full max-w-md p-6 space-y-6">
+            <DrawerHeader className="p-0">
+              <DrawerTitle className="text-center text-xl flex items-center justify-center gap-2">
+                <Pencil className="h-5 w-5 text-primary" />
+                Edit Transaction
+              </DrawerTitle>
+              <Separator className="my-4" />
+            </DrawerHeader>
+
+            <div className="space-y-4">
+              {/* Recipient */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Recipient / Merchant</label>
+                <Input
+                  value={editRecipient}
+                  onChange={(e) => setEditRecipient(e.target.value)}
+                  placeholder="Merchant name..."
+                  className="bg-background/50 h-9 text-sm w-full"
+                />
+              </div>
+
+              {/* Amount & Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">Amount ($)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(Number(e.target.value))}
+                    className="bg-background/50 h-9 text-sm w-full"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">Date</label>
+                  <Input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="bg-background/50 h-9 text-sm w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Category selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Category</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-border bg-background/50 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  {categoriesList.map((cat: any) => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                  {!categoriesList.some((c: any) => c.name === editCategory) && (
+                    <option value={editCategory}>{editCategory}</option>
+                  )}
+                </select>
+              </div>
+
+              {/* Linked Debt selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  Link to Card / Debt (Payment Flag)
+                </label>
+                <select
+                  value={editDebtId || ""}
+                  onChange={(e) => setEditDebtId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full h-9 px-3 rounded-md border border-border bg-background/50 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">-- No Link (Normal Ledger) --</option>
+                  {debts.map((d: any) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} (Outstanding: ${d.balance.toFixed(2)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Rules check-boxes */}
+              <div className="space-y-2 pt-2 border-t border-border/30">
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Auto-Categorization Rules</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="applyCategoryRule"
+                    checked={applyCategoryRule}
+                    onChange={(e) => setApplyCategoryRule(e.target.checked)}
+                    className="h-4 w-4 rounded border-border bg-background/50 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="applyCategoryRule" className="text-xs font-medium text-muted-foreground select-none cursor-pointer">
+                    Apply category override to all matches (past & future)
+                  </label>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="applyDebtRule"
+                    checked={applyDebtRule}
+                    onChange={(e) => setApplyDebtRule(e.target.checked)}
+                    className="h-4 w-4 rounded border-border bg-background/50 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="applyDebtRule" className="text-xs font-medium text-muted-foreground select-none cursor-pointer">
+                    Apply payment flag/link to all matches (past & future)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <DrawerClose asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingTransaction(null)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+              </DrawerClose>
+              <Button
+                size="sm"
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

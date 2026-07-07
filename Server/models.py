@@ -1,6 +1,7 @@
 from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import date, datetime
+import datetime as dt
 from enum import Enum
 
 # ── Constants ────────────────────────────────────────────────────────────────
@@ -85,6 +86,16 @@ def _validate_recipient(v: str) -> str:
         raise ValueError(f"recipient must be {MAX_RECIPIENT_LEN} characters or fewer")
     return v
 
+def _validate_category(v: str) -> str:
+    """Strip whitespace and enforce a max length for transaction categories."""
+    v = v.strip()
+    if not v:
+        raise ValueError("category must not be blank")
+    if len(v) > 100:
+        raise ValueError("category must be 100 characters or fewer")
+    return v
+
+
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -122,9 +133,12 @@ class Transaction(BaseModel):
     recipient: str
     date: date
     amount: float
-    category: str          # str (not enum) so existing non-whitelisted rows still deserialise
+    category: str
     type: TransactionType
     debt_id: Optional[int] = None
+    plaid_transaction_id: Optional[str] = None
+    plaid_account_id: Optional[str] = None
+    account_name: Optional[str] = None
 
 
 class TransactionCreate(BaseModel):
@@ -132,9 +146,12 @@ class TransactionCreate(BaseModel):
     recipient: str
     date: date
     amount: float
-    category: TransactionCategory
+    category: str
     type: TransactionType
     debt_id: Optional[int] = None
+    plaid_transaction_id: Optional[str] = None
+    plaid_account_id: Optional[str] = None
+    account_name: Optional[str] = None
 
     @field_validator("amount")
     @classmethod
@@ -151,13 +168,55 @@ class TransactionCreate(BaseModel):
     def validate_recipient(cls, v: str) -> str:
         return _validate_recipient(v)
 
+    @field_validator("category", mode="before")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        return _validate_category(v)
+
+
+class TransactionUpdate(BaseModel):
+    recipient: Optional[str] = None
+    date: Optional[dt.date] = None
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    type: Optional[TransactionType] = None
+    debt_id: Optional[int] = None
+    
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None:
+            return _validate_amount(v)
+        return v
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def validate_date(cls, v) -> Optional[dt.date]:
+        if v is not None:
+            return _validate_date(v)
+        return v
+
+    @field_validator("recipient", mode="before")
+    @classmethod
+    def validate_recipient(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return _validate_recipient(v)
+        return v
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def validate_category(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return _validate_category(v)
+        return v
+
 
 class RecurringTransaction(BaseModel):
     id: int
     user_id: int
     recipient: str
     amount: float
-    category: str          # str so existing rows deserialise freely
+    category: str
     type: TransactionType
     interval: RecurringInterval
     start_date: date
@@ -168,7 +227,7 @@ class RecurringTransactionCreate(BaseModel):
     user_id: int
     recipient: str
     amount: float
-    category: TransactionCategory
+    category: str
     type: TransactionType
     interval: RecurringInterval
     start_date: date
@@ -187,6 +246,11 @@ class RecurringTransactionCreate(BaseModel):
     @classmethod
     def validate_recipient(cls, v: str) -> str:
         return _validate_recipient(v)
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        return _validate_category(v)
 
 
 class Notification(BaseModel):
@@ -217,13 +281,18 @@ class Budget(BaseModel):
 
 class BudgetCreate(BaseModel):
     user_id: int
-    category: TransactionCategory
+    category: str
     amount: float
 
     @field_validator("amount")
     @classmethod
     def validate_amount(cls, v: float) -> float:
         return _validate_amount(v)
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        return _validate_category(v)
 
 
 class Debt(BaseModel):
@@ -301,3 +370,48 @@ class TrackedAssetCreate(BaseModel):
 
 class BalanceUpdate(BaseModel):
     balance: float
+
+
+class PlaidConfig(BaseModel):
+    client_id: str
+    secret: str
+    env: str
+
+
+class PlaidExchangeToken(BaseModel):
+    public_token: str
+
+
+class PlaidAccountInfo(BaseModel):
+    account_id: str
+    name: str
+    mask: Optional[str] = None
+    type: str
+    subtype: Optional[str] = None
+    balance_available: Optional[float] = None
+    balance_current: Optional[float] = None
+    balance_limit: Optional[float] = None
+
+
+class PlaidItemInfo(BaseModel):
+    item_id: str
+    institution_name: str
+    status: str
+    accounts: list[PlaidAccountInfo]
+
+
+class Category(BaseModel):
+    id: Optional[int] = None
+    name: str
+    color: Optional[str] = None
+
+
+class CategoryCreate(BaseModel):
+    name: str
+    color: Optional[str] = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        return _validate_category(v)
+

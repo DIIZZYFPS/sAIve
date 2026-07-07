@@ -89,10 +89,19 @@ const startBackend = () => {
         return;
       }
     } else {
-      // Development: run python main.py directly
-      executable = 'python';
-      args = ['main.py'];
+      // Development: run python main.py directly using virtual env if available
       cwd = path.join(__dirname, '..', '..', 'Server');
+      const venvPythonWin = path.join(cwd, 'venv', 'Scripts', 'python.exe');
+      const venvPythonUnix = path.join(cwd, 'venv', 'bin', 'python');
+
+      if (process.platform === 'win32' && fs.existsSync(venvPythonWin)) {
+        executable = venvPythonWin;
+      } else if (fs.existsSync(venvPythonUnix)) {
+        executable = venvPythonUnix;
+      } else {
+        executable = 'python';
+      }
+      args = ['main.py'];
     }
 
     console.log(`Starting backend: ${executable} ${args.join(' ')} in ${cwd}`);
