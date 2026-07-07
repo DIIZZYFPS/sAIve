@@ -39,6 +39,7 @@ import {
   Trash2,
   Inbox,
   Pencil,
+  Link as LinkIcon,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -440,15 +441,26 @@ export function TransactionsTable({
                     </TableRow>
 
                     {/* Transaction rows */}
-                    {items.map((transaction) => (
-                      <TableRow
-                        key={transaction.id}
-                        className="border-border/20 hover:bg-muted/20 transition-colors"
-                      >
-                        <TableCell className="text-sm text-muted-foreground pl-6">
-                          {format(parseISO(transaction.date), "MMM d")}
-                        </TableCell>
-                        <TableCell className="font-medium">{transaction.recipient}</TableCell>
+                    {items.map((transaction) => {
+                      const linkedDebt = debts.find((d: any) => d.id === (transaction as any).debt_id);
+                      return (
+                        <TableRow
+                          key={transaction.id}
+                          className="border-border/20 hover:bg-muted/20 transition-colors"
+                        >
+                          <TableCell className="text-sm text-muted-foreground pl-6">
+                            {format(parseISO(transaction.date), "MMM d")}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span>{transaction.recipient}</span>
+                              {linkedDebt && (
+                                <span className="text-[10px] text-primary/70 font-semibold tracking-wide flex items-center gap-1 mt-0.5">
+                                  <LinkIcon className="h-2.5 w-2.5" /> Linked to {linkedDebt.name}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
                         <TableCell>
                           {transaction.category ? (
                             <Badge
@@ -498,7 +510,7 @@ export function TransactionsTable({
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ); })}
                   </>
                 );
               })
