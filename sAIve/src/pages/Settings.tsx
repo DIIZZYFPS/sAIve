@@ -151,7 +151,17 @@ const Settings = () => {
     };
 
     const handleRemoveBankItem = async (itemId: string) => {
-        if (!confirm("Are you sure you want to unlink this bank? This will delete all linked sub-accounts, but keep your imported transaction ledger history.")) return;
+        const message = "Are you sure you want to unlink this bank?";
+        const detail = "This will delete all linked sub-accounts and all transactions imported from this bank connection. This action cannot be undone.";
+        
+        let confirmed = false;
+        const electronAPI = (window as any).electronAPI;
+        if (electronAPI?.showConfirmDialog) {
+            confirmed = await electronAPI.showConfirmDialog({ message, detail });
+        } else {
+            confirmed = window.confirm(`${message}\n\n${detail}`);
+        }
+        if (!confirmed) return;
         try {
             await api.delete(`/plaid/item/${itemId}`);
             toast.success("Bank link removed.");

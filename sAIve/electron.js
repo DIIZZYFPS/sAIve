@@ -63,6 +63,20 @@ function createWindow() {
 // --- IPC handler so the renderer can Request the backend port ---
 ipcMain.handle('get-backend-port', () => backendPort);
 
+// --- IPC handler for native confirmation dialogs ---
+ipcMain.handle('show-confirm-dialog', async (event, options) => {
+  const { response } = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Yes', 'No'],
+    defaultId: 1,
+    cancelId: 1,
+    title: options.title || 'Confirm',
+    message: options.message,
+    detail: options.detail || ''
+  });
+  return response === 0;
+});
+
 // --- IPC handler for renderer logs ---
 ipcMain.on('console-log', (event, message) => {
   console.log(`[Renderer] ${message}`);
@@ -91,13 +105,19 @@ const startBackend = () => {
     } else {
       // Development: run python main.py directly using virtual env if available
       cwd = path.join(__dirname, '..', '..', 'Server');
-      const venvPythonWin = path.join(cwd, 'venv', 'Scripts', 'python.exe');
-      const venvPythonUnix = path.join(cwd, 'venv', 'bin', 'python');
+      const venvPythonWin = path.join(cwd, '..', '.venv', 'Scripts', 'python.exe');
+      const venvPythonUnix = path.join(cwd, '..', '.venv', 'bin', 'python');
+      const fallbackWin = path.join(cwd, 'venv', 'Scripts', 'python.exe');
+      const fallbackUnix = path.join(cwd, 'venv', 'bin', 'python');
 
       if (process.platform === 'win32' && fs.existsSync(venvPythonWin)) {
         executable = venvPythonWin;
+      } else if (process.platform === 'win32' && fs.existsSync(fallbackWin)) {
+        executable = fallbackWin;
       } else if (fs.existsSync(venvPythonUnix)) {
         executable = venvPythonUnix;
+      } else if (fs.existsSync(fallbackUnix)) {
+        executable = fallbackUnix;
       } else {
         executable = 'python';
       }

@@ -952,16 +952,34 @@ const Portfolio = () => {
     };
 
     const handleEditDebt = (d: Debt) => { setEditTarget(d); setSheetOpen(true); };
-    const handleDeleteDebt = (d: Debt) => {
-        if (window.confirm(`Delete "${d.name}"? This cannot be undone.`)) {
+    const handleDeleteDebt = async (d: Debt) => {
+        const message = `Delete "${d.name}"?`;
+        const detail = "This action cannot be undone.";
+        let confirmed = false;
+        const electronAPI = (window as any).electronAPI;
+        if (electronAPI?.showConfirmDialog) {
+            confirmed = await electronAPI.showConfirmDialog({ message, detail });
+        } else {
+            confirmed = window.confirm(`${message}\n\n${detail}`);
+        }
+        if (confirmed) {
             deleteMut.mutate(d.id);
         }
     };
     const handlePay_ = (d: Debt) => { setPayTarget(d); setPaySheetOpen(true); };
 
     const handleEditAsset = (a: TrackedAsset) => { setEditAssetTarget(a); setAssetSheetOpen(true); };
-    const handleDeleteAsset = (a: TrackedAsset) => {
-        if (window.confirm(`Delete "${a.name}"? This cannot be undone.`)) {
+    const handleDeleteAsset = async (a: TrackedAsset) => {
+        const message = `Delete "${a.name}"?`;
+        const detail = "This action cannot be undone.";
+        let confirmed = false;
+        const electronAPI = (window as any).electronAPI;
+        if (electronAPI?.showConfirmDialog) {
+            confirmed = await electronAPI.showConfirmDialog({ message, detail });
+        } else {
+            confirmed = window.confirm(`${message}\n\n${detail}`);
+        }
+        if (confirmed) {
             deleteAssetMut.mutate(a.id);
         }
     };

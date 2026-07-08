@@ -182,6 +182,15 @@ def create_transaction(transaction: TransactionCreate):
         if cursor.fetchone():
             conn.close()
             return None  # Transaction already exists
+            
+        # Fuzzy match check for incoming Plaid transactions (amount + date + recipient)
+        cursor.execute('''
+            SELECT id FROM transactions 
+            WHERE date = ? AND ABS(amount - ?) < 0.01 AND LOWER(recipient) = ?
+        ''', (transaction.date, transaction.amount, transaction.recipient.strip().lower()))
+        if cursor.fetchone():
+            conn.close()
+            return None  # Transaction already exists (fuzzy duplicate)
 
     # Auto-match rules
     if not transaction.debt_id or not transaction.category or transaction.category == "Other":
@@ -222,6 +231,99 @@ def create_transaction(transaction: TransactionCreate):
     conn.commit()
     conn.close()
     return tx_id
+
+def create_transactions_batch(transactions: List[TransactionCreate]) -> int:
+    if not transactions:
+        return 0
+        
+    conn = create_connection()
+    cursor = conn.cursor()
+    added_count = 0
+    
+    try:
+        # Pre-load existing categories and rules to avoid queries in the loop
+        cursor.execute('SELECT name FROM categories')
+        existing_categories = {row['name'] for row in cursor.fetchall()}
+        
+        cursor.execute('SELECT pattern, debt_id, category FROM transaction_rules')
+        rules = cursor.fetchall()
+        
+        # Pre-load existing transactions for fuzzy deduplication (amount + date + recipient)
+        cursor.execute('SELECT date, amount, recipient FROM transactions WHERE user_id = ?', (transactions[0].user_id,))
+        existing_txs = cursor.fetchall()
+        existing_tx_set = {
+            (str(row['date']), round(float(row['amount']), 2), row['recipient'].strip().lower())
+            for row in existing_txs
+        }
+        
+        # Pre-load existing plaid transaction IDs to avoid queries
+        plaid_ids_to_check = [tx.plaid_transaction_id for tx in transactions if tx.plaid_transaction_id]
+        existing_plaid_ids = set()
+        if plaid_ids_to_check:
+            for i in range(0, len(plaid_ids_to_check), 500):
+                chunk = plaid_ids_to_check[i:i+500]
+                placeholders = ','.join('?' for _ in chunk)
+                cursor.execute(f'SELECT plaid_transaction_id FROM transactions WHERE plaid_transaction_id IN ({placeholders})', chunk)
+                existing_plaid_ids.update(row['plaid_transaction_id'] for row in cursor.fetchall())
+
+        for transaction in transactions:
+            if transaction.plaid_transaction_id and transaction.plaid_transaction_id in existing_plaid_ids:
+                continue  # Already exists by Plaid ID
+                
+            # Fuzzy match check for incoming Plaid transactions
+            tx_tuple = (str(transaction.date), round(float(transaction.amount), 2), transaction.recipient.strip().lower())
+            if tx_tuple in existing_tx_set:
+                continue  # Already exists (fuzzy duplicate)
+                
+            # Match rules
+            recipient_lower = transaction.recipient.strip().lower()
+            if not transaction.debt_id or not transaction.category or transaction.category == "Other":
+                matched_rule = None
+                for r in rules:
+                    if r['pattern'].lower() in recipient_lower:
+                        matched_rule = r
+                        break
+                if matched_rule:
+                    if not transaction.debt_id and matched_rule['debt_id']:
+                        transaction.debt_id = matched_rule['debt_id']
+                    if (not transaction.category or transaction.category == "Other") and matched_rule['category']:
+                        transaction.category = matched_rule['category']
+                        
+            # Register category if needed
+            if transaction.category not in existing_categories:
+                cursor.execute('INSERT INTO categories (name, color) VALUES (?, ?)', (transaction.category, 'muted'))
+                existing_categories.add(transaction.category)
+                
+            # Insert transaction
+            cursor.execute('''
+                INSERT INTO transactions (user_id, date, amount, category, recipient, type, debt_id, plaid_transaction_id, plaid_account_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                transaction.user_id,
+                transaction.date,
+                transaction.amount,
+                transaction.category,
+                transaction.recipient,
+                transaction.type,
+                transaction.debt_id,
+                transaction.plaid_transaction_id,
+                transaction.plaid_account_id
+            ))
+            
+            # Adjust debt balance
+            if transaction.debt_id and transaction.type == "expense":
+                cursor.execute('UPDATE debts SET balance = MAX(balance - ?, 0) WHERE id = ?', (transaction.amount, transaction.debt_id))
+                
+            added_count += 1
+            
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+        
+    return added_count
 
 def update_transaction(
     transaction_id: int, 
@@ -288,6 +390,9 @@ def update_transaction(
     # Bulk match updates (past transactions) if flags are enabled
     if apply_category_rule or apply_debt_rule:
         pattern = new_recipient.strip().lower()
+        # Escape wildcard characters for LIKE
+        escaped_pattern = pattern.replace("/", "//").replace("%", "/%").replace("_", "/_")
+        
         create_or_update_transaction_rule(
             pattern=pattern,
             debt_id=new_debt_id if apply_debt_rule else None,
@@ -296,27 +401,39 @@ def update_transaction(
         )
         
         # We sweep and update all historical transactions that match the pattern
-        cursor.execute("SELECT id FROM transactions WHERE recipient LIKE ? AND id != ?", (f"%{pattern}%", transaction_id))
-        matching_ids = [r[0] for r in cursor.fetchall()]
+        cursor.execute("SELECT id, amount, type, debt_id FROM transactions WHERE recipient LIKE ? ESCAPE '/' AND id != ?", (f"%{escaped_pattern}%", transaction_id))
+        matching_rows = cursor.fetchall()
         
-        conn.commit()
-        conn.close()
-        
-        for mid in matching_ids:
-            update_fields = {}
-            if apply_category_rule:
-                update_fields['category'] = new_category
-            if apply_debt_rule:
-                update_fields['debt_id'] = new_debt_id
-                
-            tx_updated = TransactionUpdate(**update_fields)
-            update_transaction(mid, tx_updated, apply_category_rule=False, apply_debt_rule=False)
+        if matching_rows:
+            matching_ids = [r['id'] for r in matching_rows]
             
-        return get_transaction(transaction_id)
-    else:
-        conn.commit()
-        conn.close()
-        return get_transaction(transaction_id)
+            # 1. Update the category if needed
+            if apply_category_rule:
+                placeholders = ','.join('?' for _ in matching_ids)
+                cursor.execute(f"UPDATE transactions SET category = ? WHERE id IN ({placeholders})", [new_category] + matching_ids)
+                
+            # 2. Update the debt_id and adjust debt balances if needed
+            if apply_debt_rule:
+                for r in matching_rows:
+                    old_m_debt_id = r['debt_id']
+                    m_amount = r['amount']
+                    m_type = r['type']
+                    
+                    if old_m_debt_id != new_debt_id:
+                        # Revert old debt balance
+                        if old_m_debt_id and m_type == "expense":
+                            cursor.execute('UPDATE debts SET balance = balance + ? WHERE id = ?', (m_amount, old_m_debt_id))
+                        # Apply new debt balance
+                        if new_debt_id and m_type == "expense":
+                            cursor.execute('UPDATE debts SET balance = MAX(balance - ?, 0) WHERE id = ?', (m_amount, new_debt_id))
+                
+                # Perform the single batch UPDATE for debt_id
+                placeholders = ','.join('?' for _ in matching_ids)
+                cursor.execute(f"UPDATE transactions SET debt_id = ? WHERE id IN ({placeholders})", [new_debt_id] + matching_ids)
+
+    conn.commit()
+    conn.close()
+    return get_transaction(transaction_id)
 
 def get_transaction(transaction_id: int):
     conn = create_connection()
@@ -333,14 +450,21 @@ def get_transaction(transaction_id: int):
         return _row_to_transaction(row)
     return None
 
-def get_all_transactions():
+def get_all_transactions(user_id: Optional[int] = None):
     conn = create_connection()
     cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT * FROM transactions
-        ORDER BY date ASC
-    ''')
+    if user_id is not None:
+        cursor.execute('''
+            SELECT * FROM transactions
+            WHERE user_id = ?
+            ORDER BY date ASC
+        ''', (user_id,))
+    else:
+        cursor.execute('''
+            SELECT * FROM transactions
+            ORDER BY date ASC
+        ''')
 
     rows = cursor.fetchall()
     conn.close()
@@ -921,6 +1045,16 @@ def delete_plaid_item(user_id: int, item_id: str):
     row = cursor.fetchone()
     if row:
         db_item_id = row['id']
+        
+        # Get all plaid_account_ids for this item
+        cursor.execute('SELECT account_id FROM plaid_accounts WHERE plaid_item_id = ?', (db_item_id,))
+        acct_ids = [r['account_id'] for r in cursor.fetchall()]
+        
+        if acct_ids:
+            placeholders = ','.join('?' for _ in acct_ids)
+            # Delete transactions associated with these accounts
+            cursor.execute(f'DELETE FROM transactions WHERE plaid_account_id IN ({placeholders})', acct_ids)
+            
         cursor.execute('DELETE FROM plaid_accounts WHERE plaid_item_id = ?', (db_item_id,))
         cursor.execute('DELETE FROM plaid_items WHERE id = ?', (db_item_id,))
         conn.commit()

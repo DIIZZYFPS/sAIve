@@ -240,6 +240,13 @@ def create_tables():
         if "duplicate column name" not in str(e).lower():
             raise
 
+    # Migration: add plaid_account_id column to transactions if it doesn't exist yet
+    try:
+        cursor.execute('ALTER TABLE transactions ADD COLUMN plaid_account_id TEXT')
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e).lower():
+            raise
+
     # Create transaction_rules table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transaction_rules (
@@ -250,6 +257,13 @@ def create_tables():
             FOREIGN KEY (debt_id) REFERENCES debts (id) ON DELETE SET NULL
         )
     ''')
+
+    # Create indexes for optimized queries (Criticism #7)
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_user_assets_user_year_month ON user_assets(user_id, year, month)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_recurring_transactions_user_next_date ON recurring_transactions(user_id, next_date)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_debts_user ON debts(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_tracked_assets_user ON tracked_assets(user_id)')
 
     conn.commit()
     conn.close()

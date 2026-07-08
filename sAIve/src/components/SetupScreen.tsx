@@ -111,8 +111,8 @@ export function SetupScreen() {
             }
         },
         onExit: (err) => {
-            if (err) setPlaidError(err.message);
-        }
+             if (err) setPlaidError(err.error_message || err.display_message || "Link exited with error.");
+         }
     });
 
     const handleNextStep = () => {

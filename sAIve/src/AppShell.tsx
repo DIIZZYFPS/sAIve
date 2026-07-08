@@ -27,7 +27,7 @@ const MainApp: React.FC = () => {
   const hasInitiatedLoad = React.useRef(false);
 
   useEffect(() => {
-    const minDisplayTime = 2000; // Minimum 2 seconds loader time
+    const minDisplayTime = 300; // Minimum 300ms loader time to prevent flicker
 
     const timerPromise = new Promise(resolve => setTimeout(resolve, minDisplayTime));
 

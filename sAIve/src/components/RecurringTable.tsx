@@ -57,8 +57,18 @@ export function RecurringTable() {
         onError: () => toast.error("Failed to cancel subscription"),
     });
 
-    const handleDelete = (id: number, name: string) => {
-        if (confirm(`Are you sure you want to cancel the recurring transaction: ${name}?`)) {
+    const handleDelete = async (id: number, name: string) => {
+        const message = "Cancel recurring transaction?";
+        const detail = `Are you sure you want to cancel the recurring transaction: ${name}?`;
+        
+        let confirmed = false;
+        const electronAPI = (window as any).electronAPI;
+        if (electronAPI?.showConfirmDialog) {
+            confirmed = await electronAPI.showConfirmDialog({ message, detail });
+        } else {
+            confirmed = window.confirm(`${message}\n\n${detail}`);
+        }
+        if (confirmed) {
             deleteMutation.mutate(id);
         }
     };

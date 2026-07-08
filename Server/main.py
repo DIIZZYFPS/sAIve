@@ -36,7 +36,7 @@ def read_root():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -125,7 +125,7 @@ def onboard_user(user_id: int, data: OnboardData):
 
     # Note: data.income is kept on the client side for AI context, we don't insert a fake transaction for it.
     
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(user_id)
     month_update(user_id, all_transactions)
     organize_assets(user_id, all_transactions)
     update_networth(user_id, transactions=all_transactions)
@@ -167,7 +167,6 @@ def get_user_asset(user_id: int):
 
 @app.get("/user_assets/{user_id}/all", response_model=List[models.UserAsset])
 def get_user_asset_history(user_id: int):
-    time.sleep(.05)
     return crud.get_all_user_assets(user_id)
 @app.get("/user_assets/{user_id}/category", response_model=List[models.AssetCategory])
 def get_category_summary(user_id: int):
@@ -190,7 +189,7 @@ def create_transaction(transaction: models.TransactionCreate):
     if transaction.debt_id is not None:
         sse_bus.emit_event("debts_changed", transaction.user_id)
         
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(transaction.user_id)
     month_update(transaction.user_id, all_transactions)
     organize_assets(transaction.user_id, all_transactions)
     update_networth(transaction.user_id, transactions=all_transactions)
@@ -199,9 +198,9 @@ def create_transaction(transaction: models.TransactionCreate):
 
 
 @app.get("/transactions/", response_model=list[models.Transaction])
-def get_all_transactions():
-    transactions = crud.get_all_transactions()
-    month_update(1, transactions)
+def get_all_transactions(user_id: int = 1):
+    transactions = crud.get_all_transactions(user_id)
+    month_update(user_id, transactions)
     
     return transactions
 
@@ -236,8 +235,7 @@ def update_transaction_endpoint(
         raise HTTPException(status_code=500, detail="Failed to update transaction")
         
     user_id = transaction.user_id
-    all_transactions = crud.get_all_transactions()
-    user_txns = [t for t in all_transactions if t.user_id == user_id]
+    user_txns = crud.get_all_transactions(user_id)
     
     update_networth(user_id, transactions=user_txns)
     month_update(user_id, user_txns)
@@ -262,8 +260,7 @@ def delete_transaction(transaction_id: int):
     if transaction.debt_id is not None:
         sse_bus.emit_event("debts_changed", user_id)
     
-    all_transactions = crud.get_all_transactions()
-    user_transactions = [t for t in all_transactions if t.user_id == user_id]
+    user_transactions = crud.get_all_transactions(user_id)
     
     update_networth(user_id, transactions=user_transactions)
     month_update(user_id, user_transactions)
@@ -494,9 +491,10 @@ def update_networth(user_id: int, transaction: Optional[models.TransactionCreate
             elif acct_type in ['credit', 'loan']:
                 plaid_liabilities += bal
             else:
-                plaid_assets += bal
+                print(f"Warning: Unrecognized Plaid account type '{acct_type}' for balance {bal}. Treating as liability.", file=sys.stderr)
+                plaid_liabilities += bal
                 
-        all_txs = transactions or crud.get_all_transactions()
+        all_txs = transactions if transactions is not None else crud.get_all_transactions(user_id)
         manual_net = 0.0
         for tx in all_txs:
             if tx.user_id == user_id and not tx.plaid_transaction_id:
@@ -512,11 +510,9 @@ def update_networth(user_id: int, transaction: Optional[models.TransactionCreate
                 user.net_worth += transaction.amount
             elif transaction.type == "expense":
                 user.net_worth -= transaction.amount
-            user.net_worth += total_assets
-            user.net_worth -= total_debt
         else:
             raw = 0.0
-            all_txs = transactions or crud.get_all_transactions()
+            all_txs = transactions if transactions is not None else crud.get_all_transactions(user_id)
             for tx in all_txs:
                 if tx.user_id == user_id:
                     if tx.type == "income":
@@ -536,45 +532,44 @@ def month_update(user_id: int, transactions: list[models.TransactionCreate]):
     curr_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month)
     last_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month - 1) if CURR_DATE.month > 1 else crud.get_user_asset(user_id, CURR_DATE.year - 1, 12)
 
-
-    TotalIncome = 0
-    TotalExpense = 0
-    TotalSavings = 0
-    OverFlow = 0
+    total_income = 0.0
+    total_expense = 0.0
+    overflow = 0.0
     if last_asset is not None: 
-        OverFlow = last_asset.TSavings
+        overflow = last_asset.TSavings
     curr_net_worth = user.net_worth
 
-    if curr_asset is None or not crud.has_asset(user_id):
+    if curr_asset is None:
         user_asset_obj = models.UserAsset(
             user_id=user_id,
             year=CURR_DATE.year,
             month=CURR_DATE.month,
-            TIncome=TotalIncome,
-            TExpense=TotalExpense,
-            TSavings=TotalSavings,
+            TIncome=total_income,
+            TExpense=total_expense,
+            TSavings=total_income - total_expense,
             net_worth=curr_net_worth
         )
         crud.create_user_asset(user_asset_obj)
+        
     for transaction in transactions:
         if transaction.date.month == CURR_DATE.month and transaction.date.year == CURR_DATE.year:
             if transaction.type == "income":
-                TotalIncome += transaction.amount
+                total_income += transaction.amount
             elif transaction.type == "expense":
-                TotalExpense += transaction.amount
-    TotalIncome += OverFlow
-    TotalSavings = TotalIncome - TotalExpense 
+                total_expense += transaction.amount
+    total_income += overflow
+    total_savings = total_income - total_expense 
     user_asset = crud.get_user_asset(user_id, CURR_DATE.year, CURR_DATE.month)
     if user_asset is None:
         raise HTTPException(status_code=404, detail="User asset not found")
     user_asset_obj = models.UserAsset(
-        id=user_asset.id,  # or the correct id
+        id=user_asset.id,
         user_id=user_id,
         year=CURR_DATE.year,
         month=CURR_DATE.month,
-        TIncome=TotalIncome,
-        TExpense=TotalExpense,
-        TSavings=TotalSavings,
+        TIncome=total_income,
+        TExpense=total_expense,
+        TSavings=total_savings,
         net_worth=curr_net_worth
     )
     crud.update_user_asset(user_asset_obj)
@@ -610,13 +605,18 @@ def organize_assets(user_id: int, transactions: list[models.TransactionCreate]):
         TotalSavings = TotalIncome - TotalExpense
         
 
-        # Update the asset with the new totals
-        asset.TIncome = TotalIncome
-        asset.TExpense = TotalExpense
-        asset.TSavings = TotalSavings
-        asset.net_worth = asset.TSavings
-        # Commit the changes to the database
-        crud.update_user_asset(asset)
+        # Update the asset with the new totals if they actually changed
+        if (asset.TIncome != TotalIncome or 
+            asset.TExpense != TotalExpense or 
+            asset.TSavings != TotalSavings or 
+            asset.net_worth != TotalSavings):
+            
+            asset.TIncome = TotalIncome
+            asset.TExpense = TotalExpense
+            asset.TSavings = TotalSavings
+            asset.net_worth = TotalSavings
+            # Commit the changes to the database
+            crud.update_user_asset(asset)
 
     # Create new assets for transactions that lie outside the current asset's month
 
@@ -680,7 +680,7 @@ def create_debt(user_id: int, debt: models.DebtCreate):
         sse_bus.emit_event("recurring_changed", user_id)
 
     # New debt immediately reduces net worth
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(user_id)
     update_networth(user_id, transactions=all_transactions)
     sse_bus.emit_event("debts_changed", user_id)
     return created
@@ -691,7 +691,7 @@ def update_debt(debt_id: int, debt: models.DebtCreate):
     if not existing:
         raise HTTPException(status_code=404, detail="Debt not found")
     updated = crud.update_debt(debt_id, debt)
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(existing.user_id)
     update_networth(existing.user_id, transactions=all_transactions)
     sse_bus.emit_event("debts_changed", existing.user_id)
     return updated
@@ -702,7 +702,7 @@ def patch_debt_balance(debt_id: int, body: models.BalanceUpdate):
     if not existing:
         raise HTTPException(status_code=404, detail="Debt not found")
     crud.update_debt_balance(debt_id, body.balance)
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(existing.user_id)
     update_networth(existing.user_id, transactions=all_transactions)
     sse_bus.emit_event("debts_changed", existing.user_id)
     return {"detail": "Balance updated"}
@@ -713,7 +713,7 @@ def delete_debt(debt_id: int):
     if not existing:
         raise HTTPException(status_code=404, detail="Debt not found")
     crud.delete_debt(debt_id)
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(existing.user_id)
     update_networth(existing.user_id, transactions=all_transactions)
     sse_bus.emit_event("debts_changed", existing.user_id)
     return {"detail": "Debt deleted"}
@@ -798,6 +798,7 @@ def sync_transactions_for_item(user_id: int, client, access_token: str, db_item_
         )
         response = client.transactions_sync(sync_request)
         
+        transactions_to_add = []
         for tx in response.get('added', []):
             tx_date_raw = tx['date']
             if isinstance(tx_date_raw, str):
@@ -807,9 +808,9 @@ def sync_transactions_for_item(user_id: int, client, access_token: str, db_item_
             else:
                 tx_date = tx_date_raw
                 
-            cutoff = datetime.now().date() - timedelta(days=60)
+            cutoff = datetime.now().date() - timedelta(days=365)
             if tx_date < cutoff:
-                continue # Skip transactions older than 60 days
+                continue # Skip transactions older than 365 days
                 
             plaid_amt = float(tx['amount'])
             if plaid_amt >= 0:
@@ -824,17 +825,18 @@ def sync_transactions_for_item(user_id: int, client, access_token: str, db_item_
             
             # Simple normalization to match sAIve defaults
             mapped_cat = plaid_cat
-            if "food" in plaid_cat.lower() or "restaurant" in plaid_cat.lower():
+            plaid_cat_lower = plaid_cat.lower()
+            if any(k in plaid_cat_lower for k in ["food", "restaurant", "dining", "groceries", "supermarket"]):
                 mapped_cat = "Food"
-            elif "travel" in plaid_cat.lower() or "taxi" in plaid_cat.lower() or "gas" in plaid_cat.lower():
+            elif any(k in plaid_cat_lower for k in ["travel", "taxi", "gas", "transit", "parking", "automotive", "transportation"]):
                 mapped_cat = "Transportation"
-            elif "bill" in plaid_cat.lower() or "utilities" in plaid_cat.lower():
+            elif any(k in plaid_cat_lower for k in ["bill", "utilities", "insurance", "healthcare", "medical", "pharmacy", "services"]):
                 mapped_cat = "Bills"
-            elif "subscription" in plaid_cat.lower():
+            elif "subscription" in plaid_cat_lower:
                 mapped_cat = "Subscriptions"
-            elif "rent" in plaid_cat.lower() or "mortgage" in plaid_cat.lower():
+            elif any(k in plaid_cat_lower for k in ["rent", "mortgage", "housing"]):
                 mapped_cat = "Housing"
-            elif "income" in plaid_cat.lower() or "payroll" in plaid_cat.lower() or "transfer" in plaid_cat.lower() and tx_type == "income":
+            elif any(k in plaid_cat_lower for k in ["income", "payroll", "salary", "wage"]) or ("transfer" in plaid_cat_lower and tx_type == "income"):
                 mapped_cat = "Income"
             
             recipient = tx.get('merchant_name') or tx.get('name') or "Unknown Merchant"
@@ -849,9 +851,10 @@ def sync_transactions_for_item(user_id: int, client, access_token: str, db_item_
                 plaid_transaction_id=tx['transaction_id'],
                 plaid_account_id=tx['account_id']
             )
-            created = crud.create_transaction(new_tx)
-            if created:
-                added_count += 1
+            transactions_to_add.append(new_tx)
+            
+        if transactions_to_add:
+            added_count += crud.create_transactions_batch(transactions_to_add)
                 
         cursor = response['next_cursor']
         has_more = response['has_more']
@@ -951,8 +954,7 @@ def exchange_public_token(payload: models.PlaidExchangeToken, user_id: int = 1):
         sync_transactions_for_item(user_id, client, access_token, db_item_id)
         
         # Calculate states
-        all_transactions = crud.get_all_transactions()
-        user_txns = [t for t in all_transactions if t.user_id == user_id]
+        user_txns = crud.get_all_transactions(user_id)
         update_networth(user_id, transactions=user_txns)
         month_update(user_id, user_txns)
         organize_assets(user_id, user_txns)
@@ -962,8 +964,21 @@ def exchange_public_token(payload: models.PlaidExchangeToken, user_id: int = 1):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to exchange public token: {str(e)}")
 
+LAST_PLAID_SYNC = {}
+PLAID_SYNC_COOLDOWN = 30  # 30 seconds cooldown
+
 @app.post("/plaid/sync")
 def sync_plaid_transactions_endpoint(user_id: int = 1):
+    import time
+    now = time.time()
+    last_sync = LAST_PLAID_SYNC.get(user_id, 0)
+    if now - last_sync < PLAID_SYNC_COOLDOWN:
+        raise HTTPException(
+            status_code=429, 
+            detail=f"Plaid sync is rate-limited. Please wait {int(PLAID_SYNC_COOLDOWN - (now - last_sync))} seconds before syncing again."
+        )
+    LAST_PLAID_SYNC[user_id] = now
+
     client = get_plaid_client()
     if not client:
         raise HTTPException(status_code=400, detail="Plaid client is unconfigured.")
@@ -999,8 +1014,7 @@ def sync_plaid_transactions_endpoint(user_id: int = 1):
             print(f"Error syncing Plaid item {item['item_id']}: {e}")
             
     if total_added > 0:
-        all_transactions = crud.get_all_transactions()
-        user_txns = [t for t in all_transactions if t.user_id == user_id]
+        user_txns = crud.get_all_transactions(user_id)
         update_networth(user_id, transactions=user_txns)
         month_update(user_id, user_txns)
         organize_assets(user_id, user_txns)
@@ -1061,7 +1075,7 @@ def delete_category_endpoint(name: str):
 # --- MCP Server Integration ---
 from mcp.server.fastmcp import FastMCP
 
-mcp_server = FastMCP("sAIve")
+mcp_server = FastMCP("sAIve", streamable_http_path="/")
 
 @mcp_server.tool()
 def get_net_worth(user_id: int) -> float:
@@ -1100,7 +1114,7 @@ def log_transaction(user_id: int, amount: float, tx_type: str, category: str, re
     except Exception as e:
         return f"Error: Invalid input — {e}"
     crud.create_transaction(tx)
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(user_id)
     update_networth(user_id, transactions=all_transactions)
     month_update(user_id, all_transactions)
     organize_assets(user_id, all_transactions)
@@ -1144,7 +1158,7 @@ def batch_log_transactions(user_id: int, transactions: list[dict]) -> str:
             
     # Calculate globally once at the end of the batch
     if success_count > 0:
-        all_transactions = crud.get_all_transactions()
+        all_transactions = crud.get_all_transactions(user_id)
         update_networth(user_id, transactions=all_transactions)
         month_update(user_id, all_transactions)
         organize_assets(user_id, all_transactions)
@@ -1217,8 +1231,7 @@ def delete_transaction(transaction_id: int, user_id: int) -> str:
     if transaction.user_id != user_id:
         return f"Error: Transaction {transaction_id} does not belong to user {user_id}."
     crud.delete_transaction(transaction_id)
-    all_transactions = crud.get_all_transactions()
-    user_transactions = [t for t in all_transactions if t.user_id == user_id]
+    user_transactions = crud.get_all_transactions(user_id)
     update_networth(user_id, transactions=user_transactions)
     month_update(user_id, user_transactions)
     organize_assets(user_id, user_transactions)
@@ -1393,7 +1406,7 @@ def create_tracked_asset(asset: models.TrackedAssetCreate):
     created = crud.create_tracked_asset(asset)
     
     # Recalculate net worth immediately incorporating the new equity
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(asset.user_id)
     update_networth(asset.user_id, transactions=all_transactions)
     sse_bus.emit_event("tracked_assets_changed", asset.user_id)
     sse_bus.emit_event("transactions_changed", asset.user_id) # Triggers front-end net-worth card refetch
@@ -1411,8 +1424,7 @@ def update_tracked_asset(asset_id: int, asset: models.TrackedAssetCreate):
         raise HTTPException(status_code=404, detail="Asset not found")
     
     updated = crud.update_tracked_asset(asset_id, asset)
-    
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(asset.user_id)
     update_networth(asset.user_id, transactions=all_transactions)
     sse_bus.emit_event("tracked_assets_changed", asset.user_id)
     sse_bus.emit_event("transactions_changed", asset.user_id)
@@ -1427,8 +1439,7 @@ def delete_tracked_asset(asset_id: int):
         
     user_id = existing.user_id
     crud.delete_tracked_asset(asset_id)
-    
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(user_id)
     update_networth(user_id, transactions=all_transactions)
     sse_bus.emit_event("tracked_assets_changed", user_id)
     sse_bus.emit_event("transactions_changed", user_id)
@@ -1720,8 +1731,7 @@ def delete_tracked_asset(asset_id: int, user_id: int) -> str:
         return f"Error: Asset {asset_id} does not belong to user {user_id}."
         
     crud.delete_tracked_asset(asset_id)
-    
-    all_transactions = crud.get_all_transactions()
+    all_transactions = crud.get_all_transactions(user_id)
     update_networth(user_id, transactions=all_transactions)
     sse_bus.emit_event("tracked_assets_changed", user_id)
     sse_bus.emit_event("transactions_changed", user_id)
@@ -1735,6 +1745,8 @@ def sync_plaid_transactions(user_id: int) -> str:
         res = sync_plaid_transactions_endpoint(user_id)
         return f"Plaid sync complete: synced {res['synced_items']} bank connection(s), imported {res['transactions_added']} new transaction(s)."
     except Exception as e:
+        if hasattr(e, 'detail'):
+            return f"Error: {e.detail}"
         return f"Error syncing Plaid: {str(e)}"
 
 @mcp_server.tool()
@@ -1752,8 +1764,7 @@ def get_plaid_insights(user_id: int) -> dict:
         accounts = get_plaid_accounts_endpoint(user_id)
         
         # Calculate cash flow over the last 60 days
-        all_transactions = crud.get_all_transactions()
-        user_txns = [t for t in all_transactions if t.user_id == user_id]
+        user_txns = crud.get_all_transactions(user_id)
         
         cutoff = datetime.now().date() - timedelta(days=60)
         recent_txns = []
@@ -1808,8 +1819,9 @@ def get_plaid_insights(user_id: int) -> dict:
     except Exception as e:
         return {"error": f"Failed to compute insights: {str(e)}"}
 
-# Mount the MCP server to the FastAPI app at /mcp
+# Mount the MCP server to the FastAPI app
 app.mount("/mcp", mcp_server.sse_app())
+app.mount("/mcp-http", mcp_server.streamable_http_app())
 
 # --- Background Auto-Processor ---
 import asyncio
@@ -1888,7 +1900,7 @@ async def process_recurring_transactions_loop():
 
             # If we added transactions, we need to update assets/net worth
             if transactions_added:
-                all_txns = crud.get_all_transactions()
+                all_txns = crud.get_all_transactions(user_id)
                 update_networth(user_id, transactions=all_txns)
                 month_update(user_id, all_txns)
                 organize_assets(user_id, all_txns)
@@ -1907,6 +1919,41 @@ if __name__ == "__main__":
     import uvicorn
     import socket
     import os
+    import sys
+
+    # Check command-line arguments for MCP standalone mode
+    if len(sys.argv) > 1 and sys.argv[1] in ("mcp", "--mcp"):
+        # Default transport is stdio. Support choice via second arg if provided
+        transport = "stdio"
+        if len(sys.argv) > 2:
+            arg2 = sys.argv[2].lower().replace("--", "")
+            if arg2 in ("stdio", "sse", "http"):
+                transport = arg2
+        
+        if transport == "stdio":
+            print("Starting sAIve MCP server over stdio...", file=sys.stderr, flush=True)
+            asyncio.run(mcp_server.run_stdio_async())
+        elif transport == "sse":
+            port = 48356
+            if len(sys.argv) > 3:
+                try:
+                    port = int(sys.argv[3])
+                except ValueError:
+                    pass
+            print(f"Starting sAIve MCP server over SSE on port {port}...", file=sys.stderr, flush=True)
+            mcp_server.settings.port = port
+            asyncio.run(mcp_server.run_sse_async())
+        elif transport == "http":
+            port = 48356
+            if len(sys.argv) > 3:
+                try:
+                    port = int(sys.argv[3])
+                except ValueError:
+                    pass
+            print(f"Starting sAIve MCP server over HTTP on port {port}...", file=sys.stderr, flush=True)
+            mcp_server.settings.port = port
+            asyncio.run(mcp_server.run_streamable_http_async())
+        sys.exit(0)
 
     # Check if we are running in a cloud environment (e.g., Railway sets PORT)
     env_port = os.getenv("PORT")

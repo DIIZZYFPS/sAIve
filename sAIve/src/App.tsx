@@ -11,7 +11,7 @@ import Settings from '@/pages/Settings';
 import Budget from '@/pages/Budget';
 import CalendarPage from '@/pages/CalendarPage';
 import Portfolio from '@/pages/Portfolio';
-import NotFound from './pages/NotFount';
+import NotFound from './pages/NotFound';
 
 function ThemedToaster() {
   const { mode } = useTheme();
